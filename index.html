@@ -190,6 +190,8 @@
     body.printing-all .project-wrap{page-break-before:always;}
     body.printing-all .project-wrap .view{page-break-after:always;}
     body.printing-all nav.tabs{display:none !important;}
+    body.printing-custom #customReportPrintRoot{display:block !important;}
+    body.printing-custom > *:not(#customReportPrintRoot){display:none !important;}
     .report-title{display:block;margin:0 0 4px;font-size:19px;color:var(--navy);}
     footer.report-note{display:block;font-size:11px;color:var(--text-soft);margin-top:26px;border-top:1px solid var(--border);padding-top:10px;}
     .status-pill,.doc-status{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -233,6 +235,17 @@
   .cal-dot.ok{background:var(--ok);}
   .cal-dot.pend{background:var(--warn);}
   .cal-dot.bad{background:var(--bad);}
+
+  /* Filter bar */
+  .filter-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .filter-pill{border:1px solid var(--border);background:#fff;padding:6px 13px;border-radius:20px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer;}
+  .filter-pill.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .filter-pill.f-vencido.active{background:var(--bad);border-color:var(--bad);}
+  .filter-pill.f-por_vencer.active{background:var(--warn);border-color:var(--warn);}
+  .filter-pill.f-en_proceso.active{background:var(--proc);border-color:var(--proc);}
+  .filter-pill.f-cumplido.active{background:var(--ok);border-color:var(--ok);}
+  .kpi.clickable{cursor:pointer;transition:transform .1s;}
+  .kpi.clickable:hover{transform:translateY(-2px);}
 </style>
 </head>
 <body>
@@ -314,9 +327,11 @@
 <!-- Modal: Área -->
 <div class="overlay" id="overlayArea">
   <div class="modal" style="max-width:420px;">
-    <h3>Nueva área</h3>
+    <h3 id="areaModalTitle">Nueva área</h3>
     <div class="sub">Ej. RRHH, Mantenimiento, Compras, Calidad, Producción...</div>
+    <input type="hidden" id="areaEditKey">
     <div class="field"><label>Nombre del área</label><input id="areaNombre" placeholder="Ej. Recursos Humanos"></div>
+    <div class="field"><label>Responsable del área (líder del proceso)</label><input id="areaResponsable" placeholder="Ej. Rubén Cajacuri"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('overlayArea')">Cancelar</button>
       <button class="btn-save" id="areaSaveBtn">Crear área</button>
@@ -345,12 +360,10 @@
     <div class="field"><label>Nombre</label><input id="personName" placeholder="Nombre completo"></div>
     <div class="field"><label>Correo (opcional por ahora)</label><input id="personEmail" type="email" placeholder="correo@ejemplo.com"></div>
     <div class="field"><label>Rol</label>
-      <select id="personRole">
-        <option>Responsable</option>
-        <option>Asesor SIG</option>
-        <option>Coordinador SIG</option>
-        <option>Otro</option>
-      </select>
+      <input id="personRole" list="rolesDatalist" placeholder="Ej. Responsable, Asesor SIG, Analista de Procesos...">
+      <datalist id="rolesDatalist">
+        <option value="Responsable"><option value="Asesor SIG"><option value="Coordinador SIG">
+      </datalist>
     </div>
     <div class="modal-actions">
       <button class="btn-delete-inline" id="personDeleteBtn" style="display:none;margin-right:auto;">Eliminar</button>
@@ -367,6 +380,26 @@
     <div class="sub">Desglose de compromisos abiertos, agrupados por persona.</div>
     <div id="byPersonBody"></div>
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('overlayByPerson')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal: Informe personalizado -->
+<div class="overlay" id="overlayCustomReport">
+  <div class="modal" style="max-width:520px;">
+    <h3>Informe por período</h3>
+    <div class="sub">Elige las áreas y el rango de fechas — compara qué se prometió, qué se cumplió y qué se corre.</div>
+    <div class="field"><label>Áreas a incluir</label>
+      <div id="customReportAreas" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:8px;"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Desde</label><input type="date" id="crFechaInicio"></div>
+      <div class="field"><label>Hasta</label><input type="date" id="crFechaFin"></div>
+    </div>
+    <button type="button" class="add-btn ghost" id="btnThisWeek" style="margin-bottom:10px;">📅 Esta semana (lunes a sábado)</button>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('overlayCustomReport')">Cancelar</button>
+      <button class="btn-save" id="btnGenerateCustomReport">Generar informe</button>
+    </div>
   </div>
 </div>
 
@@ -423,6 +456,8 @@
     </div>
   </div>
 </div>
+
+<div id="customReportPrintRoot" style="display:none;"></div>
 
 <footer class="report-note">
   Generado automáticamente por el Dashboard de Seguimiento de OLATI Consulting.
@@ -1567,17 +1602,42 @@ const NUM_PREFIX_RE = /^\d+\.\s*/;
 function stripNum(desc){ return (desc||'').replace(NUM_PREFIX_RE, ''); }
 function numDesc(desc, idx){ return `${idx}. ${stripNum(desc)}`; }
 
+/* ---- Filtro de estatus ---- */
+let statusFilters = {};
+function setFilter(scopeId, status){ statusFilters[scopeId] = status; renderAll(); }
+function filterBar(scopeId){
+  const current = statusFilters[scopeId] || 'all';
+  const opts = [
+    ['all','Todos',''],['cumplido','Cumplidos','f-cumplido'],['en_proceso','En proceso','f-en_proceso'],
+    ['por_vencer','Por vencer','f-por_vencer'],['vencido','Vencidos','f-vencido']
+  ];
+  return `<div class="filter-bar">${opts.map(([k,label,cls])=>
+    `<button class="filter-pill ${cls} ${current===k?'active':''}" onclick="setFilter('${scopeId}','${k}')">${label}</button>`
+  ).join('')}</div>`;
+}
+function applyFilter(list, scopeId){
+  const current = statusFilters[scopeId] || 'all';
+  if(current==='all') return list;
+  if(current==='cumplido') return list.filter(a=> a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso');
+  return list.filter(a=> a.status.key===current);
+}
+
 /* ---------- Docs helpers ---------- */
 function docBadge(val, onClick){
-  if(val===null || val===undefined) return `<span class="doc-status na">N/A</span>`;
+  if(val===undefined) return `<span class="doc-status na">N/A</span>`;
+  if(val===null) return `<button type="button" class="doc-status na" onclick="${onClick}">N/A</button>`;
   const cls = val? 'yes':'no';
   const label = val? '✔ Sí' : '— Pendiente';
   return `<button type="button" class="doc-status ${cls}" onclick="${onClick}">${label}</button>`;
 }
 function docStats(list){
-  const total = list.length || 1;
-  const pct = (key)=> Math.round(list.filter(d=> d[key]===true).length/total*100);
-  return {total:list.length, elaborado:pct('elaborado'), revisado:pct('revisado'), registros:pct('registros')};
+  const total = list.length;
+  const pct = (key)=>{
+    const applicable = list.filter(d=> d[key]!==null && d[key]!==undefined);
+    if(!applicable.length) return 0;
+    return Math.round(applicable.filter(d=>d[key]===true).length/applicable.length*100);
+  };
+  return {total, elaborado:pct('elaborado'), revisado:pct('revisado'), registros:pct('registros')};
 }
 
 /* ================= RENDER: top-level project tabs ================= */
@@ -1633,6 +1693,7 @@ function projectWrapSkeleton(p){
         <button class="calbtn" title="Calendario de compromisos">📅 Calendario</button>
         <button class="peoplebtn" title="Registro de personas">👥 Personas</button>
         <button class="bypersonbtn" title="Compromisos por responsable">📋 Por Responsable</button>
+        <button class="customreportbtn" title="Informe por período">📊 Informe por período</button>
         <button class="editp">Editar proyecto</button>
         <button class="exportp">Exportar (.json)</button>
         <button class="reportp primary">Generar informe / imprimir</button>
@@ -1648,6 +1709,7 @@ function wireProjectWrap(p){
   wrap.querySelector('.calbtn').addEventListener('click', ()=> openCalendarModal(p.id));
   wrap.querySelector('.peoplebtn').addEventListener('click', ()=> openPeopleModal(p.id));
   wrap.querySelector('.bypersonbtn').addEventListener('click', ()=> openByPersonModal(p.id));
+  wrap.querySelector('.customreportbtn').addEventListener('click', ()=> openCustomReportModal(p.id));
   wrap.querySelector('.editp').addEventListener('click', ()=> openProjectModal(p));
   wrap.querySelector('.exportp').addEventListener('click', ()=> exportProject(p));
   wrap.querySelector('.reportp').addEventListener('click', ()=> printProject(p));
@@ -1698,6 +1760,8 @@ function renderPanelGeneral(p){
   const atrasoProm = atrasos.length? Math.round(atrasos.reduce((s,d)=>s+d,0)/atrasos.length):0;
 
   const docsAll = p.areas.map(a=> ({label:a.label, color:a.color, stats: docStats(a.docs)}));
+  const scopeId = `${p.id}-general`;
+  const filtered = applyFilter(withStatus, scopeId);
 
   el.innerHTML = `
     <div class="view-head">
@@ -1705,10 +1769,10 @@ function renderPanelGeneral(p){
     </div>
     <div class="kpi-row">
       <div class="kpi neutral"><div class="kpi-label">Total compromisos</div><div class="kpi-val">${total}</div></div>
-      <div class="kpi ok"><div class="kpi-label">% Cumplimiento</div><div class="kpi-val">${pct}%</div></div>
-      <div class="kpi proc"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div></div>
-      <div class="kpi warn"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
-      <div class="kpi bad"><div class="kpi-label">Vencidos</div><div class="kpi-val">${vencidos}</div></div>
+      <div class="kpi ok clickable" onclick="setFilter('${scopeId}','cumplido')"><div class="kpi-label">% Cumplimiento</div><div class="kpi-val">${pct}%</div></div>
+      <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div></div>
+      <div class="kpi warn clickable" onclick="setFilter('${scopeId}','por_vencer')"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
+      <div class="kpi bad clickable" onclick="setFilter('${scopeId}','vencido')"><div class="kpi-label">Vencidos</div><div class="kpi-val">${vencidos}</div></div>
       <div class="kpi neutral"><div class="kpi-label">Atraso promedio</div><div class="kpi-val">${atrasoProm}d</div></div>
     </div>
     <div class="charts-row">
@@ -1716,15 +1780,16 @@ function renderPanelGeneral(p){
       <div class="chart-card"><h4>% Revisado con jefe, por área</h4><canvas id="chart-${p.id}-gen-docs"></canvas></div>
     </div>
     <div class="docs-section">
-      <h3 class="section-title">Compromisos por área</h3>
+      <div class="section-head"><h3 class="section-title">Compromisos por área</h3></div>
+      ${filterBar(scopeId)}
       <table><thead><tr><th>Área</th><th>Actividad</th><th>Responsable</th><th>Vence</th><th>Estatus</th></tr></thead>
       <tbody>
-      ${withStatus.length? withStatus.map(a=>`
+      ${filtered.length? filtered.map(a=>`
         <tr>
           <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
           <td>${numDesc(a.desc, a.localIndex)}</td><td>${a.resp}</td><td>${fmtDate(a.fechaLimite)}</td>
           <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
-        </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos registrados todavía.</td></tr>`}
+        </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con este estatus.</td></tr>`}
       </tbody></table>
     </div>
   `;
@@ -1758,11 +1823,20 @@ function renderAreaView(p, area){
   const atrasoProm = atrasos.length? Math.round(atrasos.reduce((s,d)=>s+d,0)/atrasos.length):0;
   const aTiempo = acts.filter(a=>a.status.key==='cumplido_tiempo').length;
   const conRetraso = acts.filter(a=>a.status.key==='cumplido_retraso').length;
+  const scopeId = `${p.id}-${area.key}`;
+  const filtered = applyFilter(acts, scopeId);
 
   el.innerHTML = `
     <div class="view-head">
-      <div><h3 class="vh">${area.label}</h3><p>Avance documental acumulado y seguimiento de compromisos puntuales de la semana.</p></div>
-      <button class="add-btn ghost" onclick="deleteArea('${p.id}','${area.key}')">Eliminar área</button>
+      <div>
+        <h3 class="vh">${area.label}</h3>
+        <p>Responsable del área: <b>${area.responsable || '— sin asignar'}</b></p>
+        <p>Avance documental acumulado y seguimiento de compromisos puntuales de la semana.</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="add-btn ghost" onclick="openAreaEditModal('${p.id}','${area.key}')">✎ Editar área</button>
+        <button class="add-btn ghost" onclick="deleteArea('${p.id}','${area.key}')">Eliminar área</button>
+      </div>
     </div>
 
     <div class="docs-section">
@@ -1802,20 +1876,21 @@ function renderAreaView(p, area){
       </div>
       <div class="kpi-row">
         <div class="kpi neutral"><div class="kpi-label">Total compromisos</div><div class="kpi-val">${total}</div></div>
-        <div class="kpi ok"><div class="kpi-label">% Cumplimiento</div><div class="kpi-val">${pct}%</div></div>
-        <div class="kpi proc"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div></div>
-        <div class="kpi warn"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
-        <div class="kpi bad"><div class="kpi-label">Vencidos</div><div class="kpi-val">${vencidos}</div></div>
+        <div class="kpi ok clickable" onclick="setFilter('${scopeId}','cumplido')"><div class="kpi-label">% Cumplimiento</div><div class="kpi-val">${pct}%</div></div>
+        <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div></div>
+        <div class="kpi warn clickable" onclick="setFilter('${scopeId}','por_vencer')"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
+        <div class="kpi bad clickable" onclick="setFilter('${scopeId}','vencido')"><div class="kpi-label">Vencidos</div><div class="kpi-val">${vencidos}</div></div>
         <div class="kpi neutral"><div class="kpi-label">Atraso promedio</div><div class="kpi-val">${atrasoProm}d</div></div>
       </div>
       <div class="charts-row">
         <div class="chart-card"><h4>Distribución de estatus</h4><canvas id="chart-${p.id}-${area.key}-status"></canvas></div>
         <div class="chart-card"><h4>Cumplimiento (a tiempo vs. con retraso)</h4><canvas id="chart-${p.id}-${area.key}-cump"></canvas></div>
       </div>
+      ${filterBar(scopeId)}
       <table>
         <thead><tr><th>Actividad</th><th>Responsable</th><th>Compromiso</th><th>Vence</th><th>Cumplida</th><th>Estatus</th><th></th></tr></thead>
         <tbody>
-        ${acts.length? acts.map(a=>`
+        ${filtered.length? filtered.map(a=>`
           <tr>
             <td>${numDesc(a.desc, a.localIndex)}${a.obs?`<div class="doc-note">${a.obs}</div>`:''}</td>
             <td>${a.resp}</td><td>${fmtDate(a.fechaCompromiso)}</td><td>${fmtDate(a.fechaLimite)}</td><td>${fmtDate(a.fechaCumplida)}</td>
@@ -1825,7 +1900,7 @@ function renderAreaView(p, area){
               <button onclick="openActivityModal('${p.id}','${area.key}','${a.id}')">✎</button>
               <button class="del" onclick="deleteActivity('${p.id}','${area.key}','${a.id}')">✕</button>
             </div></td>
-          </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Sin compromisos registrados todavía.</td></tr>`}
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Sin compromisos con este estatus.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -1914,18 +1989,44 @@ document.getElementById('btnEmptyNewProject').addEventListener('click', ()=> ope
 
 /* ---- Área ---- */
 let areaModalProjectId = null;
+let areaEditingKey = null;
 function openAreaModal(project){
   areaModalProjectId = project.id;
+  areaEditingKey = null;
+  document.getElementById('areaModalTitle').textContent = 'Nueva área';
+  document.getElementById('areaEditKey').value = '';
   document.getElementById('areaNombre').value = '';
+  document.getElementById('areaResponsable').value = '';
+  document.getElementById('areaSaveBtn').textContent = 'Crear área';
+  openModal('overlayArea');
+}
+function openAreaEditModal(projectId, areaKey){
+  const project = findProject(projectId);
+  const area = findArea(project, areaKey);
+  areaModalProjectId = projectId;
+  areaEditingKey = areaKey;
+  document.getElementById('areaModalTitle').textContent = 'Editar área';
+  document.getElementById('areaEditKey').value = areaKey;
+  document.getElementById('areaNombre').value = area.label;
+  document.getElementById('areaResponsable').value = area.responsable || '';
+  document.getElementById('areaSaveBtn').textContent = 'Guardar';
   openModal('overlayArea');
 }
 document.getElementById('areaSaveBtn').addEventListener('click', ()=>{
   const name = document.getElementById('areaNombre').value.trim();
+  const responsable = document.getElementById('areaResponsable').value.trim();
   if(!name){ alert('Ingresa un nombre de área'); return; }
   const project = findProject(areaModalProjectId);
-  const key = name.toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + uid().slice(0,4);
-  project.areas.push({key, label:name, color: nextColor(project), docs:[], activities:[]});
-  currentProjectId = project.id; currentAreaKey = key;
+  if(areaEditingKey){
+    const area = findArea(project, areaEditingKey);
+    area.label = name;
+    area.responsable = responsable;
+  } else {
+    const key = name.toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + uid().slice(0,4);
+    project.areas.push({key, label:name, responsable, color: nextColor(project), docs:[], activities:[]});
+    currentAreaKey = key;
+  }
+  currentProjectId = project.id;
   save(); closeModal('overlayArea'); renderAll();
 });
 
@@ -1977,8 +2078,8 @@ document.getElementById('dcDeleteBtn').addEventListener('click', ()=>{
 function toggleDoc(projectId, areaKey, docId, field){
   const project = findProject(projectId); const area = findArea(project, areaKey);
   const doc = area.docs.find(d=>d.id===docId);
-  if(doc[field]===null || doc[field]===undefined) return;
-  doc[field] = !doc[field];
+  if(doc[field]===undefined) return;
+  doc[field] = doc[field]===true? false : (doc[field]===false? null : true);
   save(); renderAreaView(project, area);
 }
 
@@ -2098,6 +2199,10 @@ function openPersonForm(personId){
   document.getElementById('personEmail').value = p? (p.email||'') : '';
   document.getElementById('personRole').value = p? p.role : 'Responsable';
   document.getElementById('personDeleteBtn').style.display = p? 'inline-block':'none';
+  const usedRoles = Array.from(new Set((project.people||[]).map(x=>x.role).filter(Boolean)));
+  const fixedRoles = ['Responsable','Asesor SIG','Coordinador SIG'];
+  const allRoles = Array.from(new Set([...fixedRoles, ...usedRoles]));
+  document.getElementById('rolesDatalist').innerHTML = allRoles.map(r=>`<option value="${r}">`).join('');
   openModal('overlayPersonForm');
 }
 document.getElementById('personSaveBtn').addEventListener('click', ()=>{
@@ -2128,6 +2233,84 @@ document.getElementById('personDeleteBtn').addEventListener('click', ()=>{
 });
 
 /* ================= Compromisos por responsable ================= */
+/* ================= Informe personalizado (por área y período) ================= */
+let customReportProjectId = null;
+function openCustomReportModal(projectId){
+  customReportProjectId = projectId;
+  const project = findProject(projectId);
+  document.getElementById('customReportAreas').innerHTML = project.areas.map(a=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13.5px;">
+      <input type="checkbox" class="cr-area-chk" value="${a.key}" checked style="width:auto;">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.color};"></span>
+      ${a.label}
+    </label>`).join('');
+  document.getElementById('crFechaInicio').value = '';
+  document.getElementById('crFechaFin').value = '';
+  openModal('overlayCustomReport');
+}
+document.getElementById('btnThisWeek').addEventListener('click', ()=>{
+  const today = new Date();
+  const day = today.getDay(); // 0=Dom,1=Lun,...6=Sáb
+  const diffToMonday = day===0? -6 : 1-day;
+  const monday = new Date(today); monday.setDate(today.getDate()+diffToMonday);
+  const saturday = new Date(monday); saturday.setDate(monday.getDate()+5);
+  const toISO = d => d.toISOString().slice(0,10);
+  document.getElementById('crFechaInicio').value = toISO(monday);
+  document.getElementById('crFechaFin').value = toISO(saturday);
+});
+document.getElementById('btnGenerateCustomReport').addEventListener('click', ()=>{
+  const fi = document.getElementById('crFechaInicio').value;
+  const ff = document.getElementById('crFechaFin').value;
+  if(!fi || !ff){ alert('Elige la fecha de inicio y fin del período'); return; }
+  const areaKeys = Array.from(document.querySelectorAll('.cr-area-chk:checked')).map(el=>el.value);
+  if(!areaKeys.length){ alert('Elige al menos un área'); return; }
+  generateCustomReport(customReportProjectId, areaKeys, fi, ff);
+});
+function generateCustomReport(projectId, areaKeys, fi, ff){
+  const project = findProject(projectId);
+  const areas = project.areas.filter(a=> areaKeys.includes(a.key));
+  const inRange = (iso)=> iso && iso>=fi && iso<=ff;
+
+  const sections = areas.map(area=>{
+    const acts = area.activities.map((a,i)=>({...a, status: computeStatus(a), localIndex:i+1}))
+      .filter(a=> inRange(a.fechaLimite));
+    const cumplidos = acts.filter(a=> a.fechaCumplida && a.fechaCumplida<=ff);
+    const pendientes = acts.filter(a=> !cumplidos.includes(a));
+    const rows = (list)=> list.length? list.map(a=>`
+      <tr>
+        <td>${numDesc(a.desc, a.localIndex)}</td>
+        <td>${a.resp}</td>
+        <td>${fmtDate(a.fechaLimite)}</td>
+        <td>${fmtDate(a.fechaCumplida)}</td>
+        <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin registros en este período.</td></tr>`;
+    return `
+      <div class="docs-section" style="page-break-inside:avoid;">
+        <h3 class="section-title">${area.label} <span style="font-weight:400;color:var(--text-soft);font-size:13px;">— Responsable: ${area.responsable||'— sin asignar'}</span></h3>
+        <div class="kpi-row">
+          <div class="kpi neutral"><div class="kpi-label">Compromisos en el período</div><div class="kpi-val">${acts.length}</div></div>
+          <div class="kpi ok"><div class="kpi-label">Cumplidos</div><div class="kpi-val">${cumplidos.length}</div></div>
+          <div class="kpi warn"><div class="kpi-label">Pendientes / se corren</div><div class="kpi-val">${pendientes.length}</div></div>
+        </div>
+        <h4 style="margin:14px 0 6px;font-size:13.5px;color:var(--ok);">✔ Cumplidos en el período</h4>
+        <table><thead><tr><th>Actividad</th><th>Responsable</th><th>Vence</th><th>Cumplida</th><th>Estatus</th></tr></thead><tbody>${rows(cumplidos)}</tbody></table>
+        <h4 style="margin:14px 0 6px;font-size:13.5px;color:var(--warn);">— Pendientes / quedan para la próxima reunión</h4>
+        <table><thead><tr><th>Actividad</th><th>Responsable</th><th>Vence</th><th>Cumplida</th><th>Estatus</th></tr></thead><tbody>${rows(pendientes)}</tbody></table>
+      </div>`;
+  }).join('');
+
+  document.getElementById('customReportPrintRoot').innerHTML = `
+    <div style="padding:24px;">
+      <h1 style="font-size:22px;color:var(--navy);margin:0 0 4px;">Informe de seguimiento — ${project.empresa}</h1>
+      <p style="color:var(--text-soft);font-size:13px;margin:0 0 22px;">Período: ${fmtDate(fi)} al ${fmtDate(ff)} · Áreas incluidas: ${areas.map(a=>a.label).join(', ')}</p>
+      ${sections}
+    </div>`;
+
+  closeModal('overlayCustomReport');
+  document.body.classList.add('printing-custom');
+  setTimeout(()=>{ window.print(); }, 150);
+}
+
 function openByPersonModal(projectId){
   const project = findProject(projectId);
   const acts = allActivitiesFlat(project).map(a=>({...a, status: computeStatus(a)}));
@@ -2318,6 +2501,7 @@ document.getElementById('btnReportAll').addEventListener('click', ()=>{
 window.addEventListener('afterprint', ()=>{
   document.body.classList.remove('printing-current');
   document.body.classList.remove('printing-all');
+  document.body.classList.remove('printing-custom');
   renderAll();
 });
 
