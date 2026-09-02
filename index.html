@@ -331,7 +331,7 @@
     <div class="sub">Ej. RRHH, Mantenimiento, Compras, Calidad, Producción...</div>
     <input type="hidden" id="areaEditKey">
     <div class="field"><label>Nombre del área</label><input id="areaNombre" placeholder="Ej. Recursos Humanos"></div>
-    <div class="field"><label>Responsable del área (líder del proceso)</label><input id="areaResponsable" placeholder="Ej. Rubén Cajacuri"></div>
+    <div class="field"><label>Responsable del área (líder del proceso)</label><select id="areaResponsable"></select></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('overlayArea')">Cancelar</button>
       <button class="btn-save" id="areaSaveBtn">Crear área</button>
@@ -359,6 +359,12 @@
     <input type="hidden" id="personId">
     <div class="field"><label>Nombre</label><input id="personName" placeholder="Nombre completo"></div>
     <div class="field"><label>Correo (opcional por ahora)</label><input id="personEmail" type="email" placeholder="correo@ejemplo.com"></div>
+    <div class="field"><label>Equipo</label>
+      <select id="personTeam">
+        <option value="olati">Equipo OLATI</option>
+        <option value="client">Equipo del cliente</option>
+      </select>
+    </div>
     <div class="field"><label>Rol</label>
       <input id="personRole" list="rolesDatalist" placeholder="Ej. Responsable, Asesor SIG, Analista de Procesos...">
       <datalist id="rolesDatalist">
@@ -438,11 +444,12 @@
     <div class="sub">Actividad puntual de seguimiento semanal.</div>
     <input type="hidden" id="fId">
     <div class="field"><label>Actividad</label><textarea id="fDesc" placeholder="Descripción del compromiso"></textarea></div>
+    <div class="field"><label>Área</label><select id="fArea"></select></div>
+    <div class="checkline"><input type="checkbox" id="fIsOlati"><label for="fIsOlati" style="margin:0;">Es una actividad institucional de OLATI (sin responsable individual)</label></div>
     <div class="field-row">
-      <div class="field"><label>Responsable</label><input id="fResp" list="peopleDatalist" placeholder="Nombre del responsable"></div>
-      <div class="field"><label>Área</label><select id="fArea"></select></div>
+      <div class="field"><label>Responsable 1</label><select id="fResp1"></select></div>
+      <div class="field"><label>Responsable 2 (opcional)</label><select id="fResp2"></select></div>
     </div>
-    <datalist id="peopleDatalist"></datalist>
     <div class="field-row3">
       <div class="field"><label>Compromiso (inicio)</label><input type="date" id="fFechaCompromiso"></div>
       <div class="field"><label>Vence</label><input type="date" id="fFechaLimite"></div>
@@ -1602,6 +1609,27 @@ const NUM_PREFIX_RE = /^\d+\.\s*/;
 function stripNum(desc){ return (desc||'').replace(NUM_PREFIX_RE, ''); }
 function numDesc(desc, idx){ return `${idx}. ${stripNum(desc)}`; }
 
+/* ---- Personas y responsables vinculados ---- */
+function personName(project, id){
+  const p = (project.people||[]).find(x=>x.id===id);
+  return p? p.name : null;
+}
+function respLabel(a, project){
+  if(a.isOlati) return 'OLATI (institucional)';
+  const n1 = a.resp1Id? personName(project, a.resp1Id) : null;
+  const n2 = a.resp2Id? personName(project, a.resp2Id) : null;
+  if(n1) return n2? `${n1} y ${n2}` : n1;
+  return a.resp || '—';
+}
+function personOptionsHTML(project, selectedId){
+  const olati = (project.people||[]).filter(p=>p.team==='olati');
+  const client = (project.people||[]).filter(p=>p.team!=='olati');
+  const opt = p => `<option value="${p.id}" ${p.id===selectedId?'selected':''}>${p.name}</option>`;
+  return `<option value="" ${!selectedId?'selected':''}>— Sin asignar —</option>
+    ${olati.length?`<optgroup label="Equipo OLATI">${olati.map(opt).join('')}</optgroup>`:''}
+    ${client.length?`<optgroup label="Equipo ${project.empresa}">${client.map(opt).join('')}</optgroup>`:''}`;
+}
+
 /* ---- Filtro de estatus ---- */
 let statusFilters = {};
 function setFilter(scopeId, status){ statusFilters[scopeId] = status; renderAll(); }
@@ -1787,7 +1815,7 @@ function renderPanelGeneral(p){
       ${filtered.length? filtered.map(a=>`
         <tr>
           <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
-          <td>${numDesc(a.desc, a.localIndex)}</td><td>${a.resp}</td><td>${fmtDate(a.fechaLimite)}</td>
+          <td>${numDesc(a.desc, a.localIndex)}</td><td>${respLabel(a, p)}</td><td>${fmtDate(a.fechaLimite)}</td>
           <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con este estatus.</td></tr>`}
       </tbody></table>
@@ -1830,7 +1858,7 @@ function renderAreaView(p, area){
     <div class="view-head">
       <div>
         <h3 class="vh">${area.label}</h3>
-        <p>Responsable del área: <b>${area.responsable || '— sin asignar'}</b></p>
+        <p>Responsable del área: <b>${personName(p, area.responsableId) || area.responsable || '— sin asignar'}</b></p>
         <p>Avance documental acumulado y seguimiento de compromisos puntuales de la semana.</p>
       </div>
       <div style="display:flex;gap:8px;">
@@ -1893,7 +1921,7 @@ function renderAreaView(p, area){
         ${filtered.length? filtered.map(a=>`
           <tr>
             <td>${numDesc(a.desc, a.localIndex)}${a.obs?`<div class="doc-note">${a.obs}</div>`:''}</td>
-            <td>${a.resp}</td><td>${fmtDate(a.fechaCompromiso)}</td><td>${fmtDate(a.fechaLimite)}</td><td>${fmtDate(a.fechaCumplida)}</td>
+            <td>${respLabel(a, p)}</td><td>${fmtDate(a.fechaCompromiso)}</td><td>${fmtDate(a.fechaLimite)}</td><td>${fmtDate(a.fechaCumplida)}</td>
             <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
             <td><div class="row-actions">
               ${!a.fechaCumplida?`<button class="done" onclick="markDone('${p.id}','${area.key}','${a.id}')">✓</button>`:''}
@@ -1996,7 +2024,7 @@ function openAreaModal(project){
   document.getElementById('areaModalTitle').textContent = 'Nueva área';
   document.getElementById('areaEditKey').value = '';
   document.getElementById('areaNombre').value = '';
-  document.getElementById('areaResponsable').value = '';
+  document.getElementById('areaResponsable').innerHTML = personOptionsHTML(project, '');
   document.getElementById('areaSaveBtn').textContent = 'Crear área';
   openModal('overlayArea');
 }
@@ -2008,22 +2036,22 @@ function openAreaEditModal(projectId, areaKey){
   document.getElementById('areaModalTitle').textContent = 'Editar área';
   document.getElementById('areaEditKey').value = areaKey;
   document.getElementById('areaNombre').value = area.label;
-  document.getElementById('areaResponsable').value = area.responsable || '';
+  document.getElementById('areaResponsable').innerHTML = personOptionsHTML(project, area.responsableId || '');
   document.getElementById('areaSaveBtn').textContent = 'Guardar';
   openModal('overlayArea');
 }
 document.getElementById('areaSaveBtn').addEventListener('click', ()=>{
   const name = document.getElementById('areaNombre').value.trim();
-  const responsable = document.getElementById('areaResponsable').value.trim();
+  const responsableId = document.getElementById('areaResponsable').value;
   if(!name){ alert('Ingresa un nombre de área'); return; }
   const project = findProject(areaModalProjectId);
   if(areaEditingKey){
     const area = findArea(project, areaEditingKey);
     area.label = name;
-    area.responsable = responsable;
+    area.responsableId = responsableId;
   } else {
     const key = name.toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + uid().slice(0,4);
-    project.areas.push({key, label:name, responsable, color: nextColor(project), docs:[], activities:[]});
+    project.areas.push({key, label:name, responsableId, color: nextColor(project), docs:[], activities:[]});
     currentAreaKey = key;
   }
   currentProjectId = project.id;
@@ -2085,6 +2113,11 @@ function toggleDoc(projectId, areaKey, docId, field){
 
 /* ---- Compromiso ---- */
 let actModalCtx = {projectId:null, areaKey:null, actId:null};
+function toggleRespDisabled(){
+  const isOlati = document.getElementById('fIsOlati').checked;
+  document.getElementById('fResp1').disabled = isOlati;
+  document.getElementById('fResp2').disabled = isOlati;
+}
 function openActivityModal(projectId, areaKey, actId){
   actModalCtx = {projectId, areaKey, actId};
   const project = findProject(projectId); const area = findArea(project, areaKey);
@@ -2092,7 +2125,6 @@ function openActivityModal(projectId, areaKey, actId){
   document.getElementById('actModalTitle').textContent = a? 'Editar compromiso' : 'Nuevo compromiso';
   document.getElementById('fId').value = actId||'';
   document.getElementById('fDesc').value = a? stripNum(a.desc) : '';
-  document.getElementById('fResp').value = a? a.resp : '';
   document.getElementById('fFechaCompromiso').value = a? a.fechaCompromiso : new Date().toISOString().slice(0,10);
   document.getElementById('fFechaLimite').value = a? a.fechaLimite : '';
   document.getElementById('fFechaCumplida').value = a? a.fechaCumplida : '';
@@ -2101,18 +2133,31 @@ function openActivityModal(projectId, areaKey, actId){
   const areaSel = document.getElementById('fArea');
   areaSel.innerHTML = project.areas.map(ar=>`<option value="${ar.key}">${ar.label}</option>`).join('');
   areaSel.value = areaKey;
-  const dl = document.getElementById('peopleDatalist');
-  dl.innerHTML = (project.people||[]).map(p=>`<option value="${p.name}">`).join('');
+  document.getElementById('fResp1').innerHTML = personOptionsHTML(project, a? (a.resp1Id||'') : (area.responsableId||''));
+  document.getElementById('fResp2').innerHTML = personOptionsHTML(project, a? (a.resp2Id||'') : '');
+  document.getElementById('fIsOlati').checked = a? !!a.isOlati : false;
+  toggleRespDisabled();
   openModal('overlayAct');
 }
+document.getElementById('fIsOlati').addEventListener('change', toggleRespDisabled);
+document.getElementById('fArea').addEventListener('change', function(){
+  const project = findProject(actModalCtx.projectId);
+  const area = findArea(project, this.value);
+  if(area && area.responsableId){
+    document.getElementById('fResp1').value = area.responsableId;
+  }
+});
 document.getElementById('fSaveBtn').addEventListener('click', ()=>{
   const {projectId, actId} = actModalCtx;
   const originalAreaKey = actModalCtx.areaKey;
   const project = findProject(projectId);
   const newAreaKey = document.getElementById('fArea').value;
+  const isOlati = document.getElementById('fIsOlati').checked;
   const payload = {
     desc: document.getElementById('fDesc').value.trim(),
-    resp: document.getElementById('fResp').value.trim(),
+    isOlati,
+    resp1Id: isOlati? '' : document.getElementById('fResp1').value,
+    resp2Id: isOlati? '' : document.getElementById('fResp2').value,
     fechaCompromiso: document.getElementById('fFechaCompromiso').value,
     fechaLimite: document.getElementById('fFechaLimite').value,
     fechaCumplida: document.getElementById('fFechaCumplida').value || '',
@@ -2175,18 +2220,26 @@ function openPeopleModal(projectId){
 function renderPeopleList(){
   const project = findProject(peopleModalProjectId);
   const people = project.people || [];
+  const olati = people.filter(p=>p.team==='olati');
+  const client = people.filter(p=>p.team!=='olati');
   const wrap = document.getElementById('peopleListWrap');
-  wrap.innerHTML = `
+  const tbl = (list, emptyMsg) => `
     <table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th></th></tr></thead>
     <tbody>
-      ${people.length? people.map(p=>`
+      ${list.length? list.map(p=>`
         <tr>
           <td>${p.name}</td>
           <td>${p.email||'<span style="color:var(--text-soft);">— sin correo aún</span>'}</td>
           <td>${p.role}</td>
           <td><div class="row-actions"><button onclick="openPersonForm('${p.id}')">✎</button></div></td>
-        </tr>`).join('') : `<tr class="empty-row"><td colspan="4">Todavía no hay personas registradas.</td></tr>`}
+        </tr>`).join('') : `<tr class="empty-row"><td colspan="4">${emptyMsg}</td></tr>`}
     </tbody></table>`;
+  wrap.innerHTML = `
+    <h4 style="margin:14px 0 8px;font-size:13.5px;color:var(--navy);">Equipo OLATI</h4>
+    ${tbl(olati, 'Sin personas de OLATI registradas todavía.')}
+    <h4 style="margin:18px 0 8px;font-size:13.5px;color:var(--navy);">Equipo ${project.empresa}</h4>
+    ${tbl(client, 'Sin personas del cliente registradas todavía.')}
+  `;
 }
 document.getElementById('btnAddPerson').addEventListener('click', ()=> openPersonForm(null));
 function openPersonForm(personId){
@@ -2198,6 +2251,7 @@ function openPersonForm(personId){
   document.getElementById('personName').value = p? p.name : '';
   document.getElementById('personEmail').value = p? (p.email||'') : '';
   document.getElementById('personRole').value = p? p.role : 'Responsable';
+  document.getElementById('personTeam').value = p? (p.team||'client') : 'olati';
   document.getElementById('personDeleteBtn').style.display = p? 'inline-block':'none';
   const usedRoles = Array.from(new Set((project.people||[]).map(x=>x.role).filter(Boolean)));
   const fixedRoles = ['Responsable','Asesor SIG','Coordinador SIG'];
@@ -2214,7 +2268,8 @@ document.getElementById('personSaveBtn').addEventListener('click', ()=>{
   const payload = {
     name,
     email: document.getElementById('personEmail').value.trim(),
-    role: document.getElementById('personRole').value
+    role: document.getElementById('personRole').value,
+    team: document.getElementById('personTeam').value
   };
   if(personId){
     const idx = project.people.findIndex(x=>x.id===personId);
@@ -2279,7 +2334,7 @@ function generateCustomReport(projectId, areaKeys, fi, ff){
     const rows = (list)=> list.length? list.map(a=>`
       <tr>
         <td>${numDesc(a.desc, a.localIndex)}</td>
-        <td>${a.resp}</td>
+        <td>${respLabel(a, project)}</td>
         <td>${fmtDate(a.fechaLimite)}</td>
         <td>${fmtDate(a.fechaCumplida)}</td>
         <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
@@ -2315,9 +2370,17 @@ function openByPersonModal(projectId){
   const project = findProject(projectId);
   const acts = allActivitiesFlat(project).map(a=>({...a, status: computeStatus(a)}));
   const groups = {};
+  const addTo = (key, a) => { (groups[key] = groups[key] || []).push(a); };
   acts.forEach(a=>{
-    const key = a.resp && a.resp.trim() ? a.resp.trim() : '(Sin responsable asignado)';
-    (groups[key] = groups[key] || []).push(a);
+    if(a.isOlati){ addTo('OLATI (institucional)', a); return; }
+    const n1 = a.resp1Id? personName(project, a.resp1Id) : null;
+    const n2 = a.resp2Id? personName(project, a.resp2Id) : null;
+    if(n1 || n2){
+      if(n1) addTo(n1, a);
+      if(n2) addTo(n2, a);
+    } else {
+      addTo(a.resp && a.resp.trim() ? a.resp.trim() : '(Sin responsable asignado)', a);
+    }
   });
   const names = Object.keys(groups).sort((a,b)=> a.localeCompare(b));
   const html = names.map(name=>{
@@ -2459,7 +2522,7 @@ function renderCalendar(){
         <td>${fmtDate(a.fechaLimite)}</td>
         <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
         <td>${numDesc(a.desc, a.localIndex)}</td>
-        <td>${a.resp}</td>
+        <td>${respLabel(a, project)}</td>
         <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
       </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con vencimiento en ${label}.</td></tr>`}
   </tbody></table>`;
