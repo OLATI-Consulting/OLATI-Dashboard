@@ -324,6 +324,52 @@
   </div>
 </div>
 
+<!-- Modal: Registro de Personas -->
+<div class="overlay" id="overlayPeople">
+  <div class="modal" style="max-width:640px;">
+    <h3>Registro de personas</h3>
+    <div class="sub">Responsables, Asesores SIG y Coordinador SIG — para desglosar y reportar por responsable.</div>
+    <div id="peopleListWrap"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('overlayPeople')">Cerrar</button>
+      <button class="btn-save" id="btnAddPerson">+ Agregar persona</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Persona (agregar/editar) -->
+<div class="overlay" id="overlayPersonForm">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="personFormTitle">Nueva persona</h3>
+    <input type="hidden" id="personId">
+    <div class="field"><label>Nombre</label><input id="personName" placeholder="Nombre completo"></div>
+    <div class="field"><label>Correo (opcional por ahora)</label><input id="personEmail" type="email" placeholder="correo@ejemplo.com"></div>
+    <div class="field"><label>Rol</label>
+      <select id="personRole">
+        <option>Responsable</option>
+        <option>Asesor SIG</option>
+        <option>Coordinador SIG</option>
+        <option>Otro</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-delete-inline" id="personDeleteBtn" style="display:none;margin-right:auto;">Eliminar</button>
+      <button class="btn-cancel" onclick="closeModal('overlayPersonForm')">Cancelar</button>
+      <button class="btn-save" id="personSaveBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Por Responsable -->
+<div class="overlay" id="overlayByPerson">
+  <div class="modal" style="max-width:840px;">
+    <h3>Compromisos por responsable</h3>
+    <div class="sub">Desglose de compromisos abiertos, agrupados por persona.</div>
+    <div id="byPersonBody"></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('overlayByPerson')">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- Modal: Documento -->
 <div class="overlay" id="overlayDoc">
   <div class="modal">
@@ -359,7 +405,11 @@
     <div class="sub">Actividad puntual de seguimiento semanal.</div>
     <input type="hidden" id="fId">
     <div class="field"><label>Actividad</label><textarea id="fDesc" placeholder="Descripción del compromiso"></textarea></div>
-    <div class="field"><label>Responsable</label><input id="fResp" placeholder="Nombre del responsable"></div>
+    <div class="field-row">
+      <div class="field"><label>Responsable</label><input id="fResp" list="peopleDatalist" placeholder="Nombre del responsable"></div>
+      <div class="field"><label>Área</label><select id="fArea"></select></div>
+    </div>
+    <datalist id="peopleDatalist"></datalist>
     <div class="field-row3">
       <div class="field"><label>Compromiso (inicio)</label><input type="date" id="fFechaCompromiso"></div>
       <div class="field"><label>Vence</label><input type="date" id="fFechaLimite"></div>
@@ -1513,6 +1563,9 @@ function computeStatus(act){
   return {key:'en_proceso', dias:diff, text:`En proceso, ${diff} día(s) restantes`};
 }
 function fmtDate(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+const NUM_PREFIX_RE = /^\d+\.\s*/;
+function stripNum(desc){ return (desc||'').replace(NUM_PREFIX_RE, ''); }
+function numDesc(desc, idx){ return `${idx}. ${stripNum(desc)}`; }
 
 /* ---------- Docs helpers ---------- */
 function docBadge(val, onClick){
@@ -1578,6 +1631,8 @@ function projectWrapSkeleton(p){
       </div>
       <div class="pactions">
         <button class="calbtn" title="Calendario de compromisos">📅 Calendario</button>
+        <button class="peoplebtn" title="Registro de personas">👥 Personas</button>
+        <button class="bypersonbtn" title="Compromisos por responsable">📋 Por Responsable</button>
         <button class="editp">Editar proyecto</button>
         <button class="exportp">Exportar (.json)</button>
         <button class="reportp primary">Generar informe / imprimir</button>
@@ -1591,6 +1646,8 @@ function projectWrapSkeleton(p){
 function wireProjectWrap(p){
   const wrap = document.querySelector(`.project-wrap[data-project="${p.id}"]`);
   wrap.querySelector('.calbtn').addEventListener('click', ()=> openCalendarModal(p.id));
+  wrap.querySelector('.peoplebtn').addEventListener('click', ()=> openPeopleModal(p.id));
+  wrap.querySelector('.bypersonbtn').addEventListener('click', ()=> openByPersonModal(p.id));
   wrap.querySelector('.editp').addEventListener('click', ()=> openProjectModal(p));
   wrap.querySelector('.exportp').addEventListener('click', ()=> exportProject(p));
   wrap.querySelector('.reportp').addEventListener('click', ()=> printProject(p));
@@ -1629,7 +1686,7 @@ function renderProjectContent(p){
 function renderPanelGeneral(p){
   const el = document.getElementById(`view-${p.id}-general`);
   if(!el) return;
-  const allActs = p.areas.flatMap(a=> a.activities.map(x=>({...x, areaKey:a.key, areaLabel:a.label, areaColor:a.color})));
+  const allActs = p.areas.flatMap(a=> a.activities.map((x,i)=>({...x, areaKey:a.key, areaLabel:a.label, areaColor:a.color, localIndex:i+1})));
   const withStatus = allActs.map(a=> ({...a, status: computeStatus(a)}));
   const total = withStatus.length;
   const cumplidos = withStatus.filter(a=> a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
@@ -1665,7 +1722,7 @@ function renderPanelGeneral(p){
       ${withStatus.length? withStatus.map(a=>`
         <tr>
           <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
-          <td>${a.desc}</td><td>${a.resp}</td><td>${fmtDate(a.fechaLimite)}</td>
+          <td>${numDesc(a.desc, a.localIndex)}</td><td>${a.resp}</td><td>${fmtDate(a.fechaLimite)}</td>
           <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos registrados todavía.</td></tr>`}
       </tbody></table>
@@ -1690,7 +1747,7 @@ function renderAreaView(p, area){
   const el = document.getElementById(`view-${p.id}-${area.key}`);
   if(!el) return;
   const ds = docStats(area.docs);
-  const acts = area.activities.map(a=>({...a, status: computeStatus(a)}));
+  const acts = area.activities.map((a,i)=>({...a, status: computeStatus(a), localIndex:i+1}));
   const total = acts.length;
   const cumplidos = acts.filter(a=> a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
   const enProceso = acts.filter(a=> a.status.key==='en_proceso').length;
@@ -1760,7 +1817,7 @@ function renderAreaView(p, area){
         <tbody>
         ${acts.length? acts.map(a=>`
           <tr>
-            <td>${a.desc}${a.obs?`<div class="doc-note">${a.obs}</div>`:''}</td>
+            <td>${numDesc(a.desc, a.localIndex)}${a.obs?`<div class="doc-note">${a.obs}</div>`:''}</td>
             <td>${a.resp}</td><td>${fmtDate(a.fechaCompromiso)}</td><td>${fmtDate(a.fechaLimite)}</td><td>${fmtDate(a.fechaCumplida)}</td>
             <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
             <td><div class="row-actions">
@@ -1933,18 +1990,25 @@ function openActivityModal(projectId, areaKey, actId){
   const a = actId? area.activities.find(x=>x.id===actId) : null;
   document.getElementById('actModalTitle').textContent = a? 'Editar compromiso' : 'Nuevo compromiso';
   document.getElementById('fId').value = actId||'';
-  document.getElementById('fDesc').value = a? a.desc : '';
+  document.getElementById('fDesc').value = a? stripNum(a.desc) : '';
   document.getElementById('fResp').value = a? a.resp : '';
   document.getElementById('fFechaCompromiso').value = a? a.fechaCompromiso : new Date().toISOString().slice(0,10);
   document.getElementById('fFechaLimite').value = a? a.fechaLimite : '';
   document.getElementById('fFechaCumplida').value = a? a.fechaCumplida : '';
   document.getElementById('fObs').value = a? (a.obs||'') : '';
   document.getElementById('fDeleteBtn').style.display = a? 'inline-block':'none';
+  const areaSel = document.getElementById('fArea');
+  areaSel.innerHTML = project.areas.map(ar=>`<option value="${ar.key}">${ar.label}</option>`).join('');
+  areaSel.value = areaKey;
+  const dl = document.getElementById('peopleDatalist');
+  dl.innerHTML = (project.people||[]).map(p=>`<option value="${p.name}">`).join('');
   openModal('overlayAct');
 }
 document.getElementById('fSaveBtn').addEventListener('click', ()=>{
-  const {projectId, areaKey, actId} = actModalCtx;
-  const project = findProject(projectId); const area = findArea(project, areaKey);
+  const {projectId, actId} = actModalCtx;
+  const originalAreaKey = actModalCtx.areaKey;
+  const project = findProject(projectId);
+  const newAreaKey = document.getElementById('fArea').value;
   const payload = {
     desc: document.getElementById('fDesc').value.trim(),
     resp: document.getElementById('fResp').value.trim(),
@@ -1955,10 +2019,19 @@ document.getElementById('fSaveBtn').addEventListener('click', ()=>{
   };
   if(!payload.desc || !payload.fechaLimite){ alert('Actividad y fecha de vencimiento son obligatorias'); return; }
   if(actId){
-    const idx = area.activities.findIndex(x=>x.id===actId);
-    area.activities[idx] = {...area.activities[idx], ...payload};
+    const oldArea = findArea(project, originalAreaKey);
+    const idx = oldArea.activities.findIndex(x=>x.id===actId);
+    const merged = {...oldArea.activities[idx], ...payload};
+    if(newAreaKey !== originalAreaKey){
+      oldArea.activities.splice(idx,1);
+      findArea(project, newAreaKey).activities.push(merged);
+      currentAreaKey = newAreaKey;
+    } else {
+      oldArea.activities[idx] = merged;
+    }
   } else {
-    area.activities.push({id:uid(), ...payload});
+    findArea(project, newAreaKey).activities.push({id:uid(), ...payload});
+    currentAreaKey = newAreaKey;
   }
   save(); closeModal('overlayAct'); renderAll();
 });
@@ -1987,6 +2060,108 @@ function deleteArea(projectId, areaKey){
   project.areas = project.areas.filter(a=>a.key!==areaKey);
   currentAreaKey = 'general';
   save(); renderAll();
+}
+
+/* ================= Registro de personas ================= */
+let peopleModalProjectId = null;
+let personFormCtx = { projectId:null, personId:null };
+
+function openPeopleModal(projectId){
+  peopleModalProjectId = projectId;
+  renderPeopleList();
+  openModal('overlayPeople');
+}
+function renderPeopleList(){
+  const project = findProject(peopleModalProjectId);
+  const people = project.people || [];
+  const wrap = document.getElementById('peopleListWrap');
+  wrap.innerHTML = `
+    <table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th></th></tr></thead>
+    <tbody>
+      ${people.length? people.map(p=>`
+        <tr>
+          <td>${p.name}</td>
+          <td>${p.email||'<span style="color:var(--text-soft);">— sin correo aún</span>'}</td>
+          <td>${p.role}</td>
+          <td><div class="row-actions"><button onclick="openPersonForm('${p.id}')">✎</button></div></td>
+        </tr>`).join('') : `<tr class="empty-row"><td colspan="4">Todavía no hay personas registradas.</td></tr>`}
+    </tbody></table>`;
+}
+document.getElementById('btnAddPerson').addEventListener('click', ()=> openPersonForm(null));
+function openPersonForm(personId){
+  const project = findProject(peopleModalProjectId);
+  const p = personId? (project.people||[]).find(x=>x.id===personId) : null;
+  personFormCtx = { projectId: peopleModalProjectId, personId };
+  document.getElementById('personFormTitle').textContent = p? 'Editar persona' : 'Nueva persona';
+  document.getElementById('personId').value = personId||'';
+  document.getElementById('personName').value = p? p.name : '';
+  document.getElementById('personEmail').value = p? (p.email||'') : '';
+  document.getElementById('personRole').value = p? p.role : 'Responsable';
+  document.getElementById('personDeleteBtn').style.display = p? 'inline-block':'none';
+  openModal('overlayPersonForm');
+}
+document.getElementById('personSaveBtn').addEventListener('click', ()=>{
+  const { projectId, personId } = personFormCtx;
+  const project = findProject(projectId);
+  if(!project.people) project.people = [];
+  const name = document.getElementById('personName').value.trim();
+  if(!name){ alert('El nombre es obligatorio'); return; }
+  const payload = {
+    name,
+    email: document.getElementById('personEmail').value.trim(),
+    role: document.getElementById('personRole').value
+  };
+  if(personId){
+    const idx = project.people.findIndex(x=>x.id===personId);
+    project.people[idx] = {...project.people[idx], ...payload};
+  } else {
+    project.people.push({id:uid(), ...payload});
+  }
+  save(); closeModal('overlayPersonForm'); renderPeopleList(); renderAll();
+});
+document.getElementById('personDeleteBtn').addEventListener('click', ()=>{
+  const { projectId, personId } = personFormCtx;
+  if(!confirm('¿Eliminar esta persona del registro? Los compromisos que ya le mencionan como responsable no se modifican.')) return;
+  const project = findProject(projectId);
+  project.people = (project.people||[]).filter(x=>x.id!==personId);
+  save(); closeModal('overlayPersonForm'); renderPeopleList(); renderAll();
+});
+
+/* ================= Compromisos por responsable ================= */
+function openByPersonModal(projectId){
+  const project = findProject(projectId);
+  const acts = allActivitiesFlat(project).map(a=>({...a, status: computeStatus(a)}));
+  const groups = {};
+  acts.forEach(a=>{
+    const key = a.resp && a.resp.trim() ? a.resp.trim() : '(Sin responsable asignado)';
+    (groups[key] = groups[key] || []).push(a);
+  });
+  const names = Object.keys(groups).sort((a,b)=> a.localeCompare(b));
+  const html = names.map(name=>{
+    const list = groups[name];
+    const total = list.length;
+    const cumplidos = list.filter(a=>a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
+    const pct = total? Math.round(cumplidos/total*100):0;
+    return `
+    <div class="docs-section">
+      <div class="section-head">
+        <h3 class="section-title">${name}</h3>
+        <span style="font-size:12.5px;color:var(--text-soft);">${cumplidos}/${total} cumplidos (${pct}%)</span>
+      </div>
+      <table><thead><tr><th>Área</th><th>Actividad</th><th>Vence</th><th>Estatus</th></tr></thead>
+      <tbody>
+        ${list.map(a=>`
+          <tr>
+            <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
+            <td>${numDesc(a.desc, a.localIndex)}</td>
+            <td>${fmtDate(a.fechaLimite)}</td>
+            <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
+          </tr>`).join('')}
+      </tbody></table>
+    </div>`;
+  }).join('');
+  document.getElementById('byPersonBody').innerHTML = html || '<p style="color:var(--text-soft);">Sin compromisos registrados todavía.</p>';
+  openModal('overlayByPerson');
 }
 
 /* ================= Export / Import ================= */
@@ -2038,7 +2213,7 @@ let calProjectId = null;
 let calMonthIndex = 1;
 
 function allActivitiesFlat(project){
-  return project.areas.flatMap(a=> a.activities.map(x=>({...x, areaKey:a.key, areaLabel:a.label, areaColor:a.color})));
+  return project.areas.flatMap(a=> a.activities.map((x,i)=>({...x, areaKey:a.key, areaLabel:a.label, areaColor:a.color, localIndex:i+1})));
 }
 
 function openCalendarModal(projectId){
@@ -2100,7 +2275,7 @@ function renderCalendar(){
       <tr>
         <td>${fmtDate(a.fechaLimite)}</td>
         <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
-        <td>${a.desc}</td>
+        <td>${numDesc(a.desc, a.localIndex)}</td>
         <td>${a.resp}</td>
         <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
       </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con vencimiento en ${label}.</td></tr>`}
