@@ -1917,6 +1917,7 @@ function renderPanelGeneral(p){
   const ganttGeneral = ganttAvgOverall(p);
   const weekRange = getCurrentWeekRange();
   const weekPct = cumplidoPctForActs(allActivitiesFlat(p), weekRange.start, weekRange.end);
+  const aLaFechaPct = cumplidoPctGeneral(allActivitiesFlat(p));
 
   el.innerHTML = `
     <div class="view-head">
@@ -1931,6 +1932,7 @@ function renderPanelGeneral(p){
       <div class="kpi neutral"><div class="kpi-label">Atraso promedio</div><div class="kpi-val">${atrasoProm}d</div></div>
       <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con cada área"><div class="kpi-label">% A tiempo (general, Gantt)</div><div class="kpi-val">${ganttGeneral!==null? ganttGeneral+'%' : '—'}</div></div>
       <div class="kpi ok" title="De los compromisos que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de Cumplimiento</div><div class="kpi-val">${weekPct? weekPct.pct+'%' : '—'}</div></div>
+      <div class="kpi proc" title="De todos los compromisos cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron — no se resetea cada semana ni se mezcla con compromisos futuros"><div class="kpi-label">% de Cumplimiento (a la fecha)</div><div class="kpi-val">${aLaFechaPct? aLaFechaPct.pct+'%' : '—'}</div></div>
     </div>
     <div class="charts-row">
       <div class="chart-card"><h4>Estatus global de compromisos</h4><canvas id="chart-${p.id}-gen-status"></canvas></div>
@@ -2058,6 +2060,7 @@ function renderAreaView(p, area){
         <div class="kpi neutral"><div class="kpi-label">Atraso promedio</div><div class="kpi-val">${atrasoProm}d</div></div>
         <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con esta área"><div class="kpi-label">% A tiempo (general, Gantt)</div><div class="kpi-val">${(()=>{const g=ganttAvgForArea(p, area.key); return g!==null? g+'%' : '—';})()}</div></div>
         <div class="kpi ok" title="De los compromisos de esta área que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de Cumplimiento</div><div class="kpi-val">${(()=>{const wr=getCurrentWeekRange(); const wp=cumplidoPctForActs(area.activities, wr.start, wr.end); return wp? wp.pct+'%' : '—';})()}</div></div>
+        <div class="kpi proc" title="De todos los compromisos de esta área cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron"><div class="kpi-label">% de Cumplimiento (a la fecha)</div><div class="kpi-val">${(()=>{const afp=cumplidoPctGeneral(area.activities); return afp? afp.pct+'%' : '—';})()}</div></div>
       </div>
       <div class="charts-row">
         <div class="chart-card"><h4>Distribución de estatus</h4><canvas id="chart-${p.id}-${area.key}-status"></canvas></div>
@@ -2681,18 +2684,20 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
   const vencidosGen = allActs.filter(a=>a.status.key==='vencido').length;
   const ganttGen = ganttAvgOverall(project);
   const weekPctGen = cumplidoPctForActs(allActs, fi, ff);
+  const aLaFechaPctGen = cumplidoPctGeneral(allActs);
   const kpis = [
     ['Total compromisos', String(total)],
     ['% de Avance de Compromisos Totales', total? Math.round(cumplidos/total*100)+'%':'—'],
     ['% A tiempo (Gantt)', ganttGen!==null? ganttGen+'%':'—'],
     ['% de Cumplimiento (semana)', weekPctGen? weekPctGen.pct+'%':'—'],
+    ['% de Cumplimiento (a la fecha)', aLaFechaPctGen? aLaFechaPctGen.pct+'%':'—'],
     ['Vencidos', String(vencidosGen)]
   ];
   kpis.forEach((k,i)=>{
-    const x = 0.4 + i*(W-0.8)/5;
-    slide.addShape('roundRect', {x, y:1.75, w:(W-0.8)/5-0.15, h:0.95, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
-    slide.addText(k[0], {x:x+0.05,y:1.82,w:(W-0.8)/5-0.25,h:0.35,fontSize:8.5,color:'667085'});
-    slide.addText(k[1], {x:x+0.05,y:2.12,w:(W-0.8)/5-0.25,h:0.5,fontSize:18,color: k[0]==='Vencidos'&&vencidosGen>0?'C22B2B':'1B2A4A', bold:true});
+    const x = 0.4 + i*(W-0.8)/kpis.length;
+    slide.addShape('roundRect', {x, y:1.75, w:(W-0.8)/kpis.length-0.15, h:0.95, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
+    slide.addText(k[0], {x:x+0.05,y:1.82,w:(W-0.8)/kpis.length-0.25,h:0.35,fontSize:8,color:'667085'});
+    slide.addText(k[1], {x:x+0.05,y:2.12,w:(W-0.8)/kpis.length-0.25,h:0.5,fontSize:16,color: k[0]==='Vencidos'&&vencidosGen>0?'C22B2B':'1B2A4A', bold:true});
   });
   const statusCounts = {a:0,r:0,p:0,v:0,x:0};
   allActs.forEach(a=>{
@@ -2752,6 +2757,7 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
     const cumplTotalArea = acts.filter(a=>a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
     const ganttArea = ganttAvgForArea(project, area.key);
     const weekPctArea = cumplidoPctForActs(area.activities, fi, ff);
+    const aLaFechaPctArea = cumplidoPctGeneral(area.activities);
 
     // Divisor
     let s = pptx.addSlide();
@@ -2769,14 +2775,15 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
       ['% de Avance de Compromisos Totales', totalArea? Math.round(cumplTotalArea/totalArea*100)+'%':'—'],
       ['% A tiempo (Gantt)', ganttArea!==null? ganttArea+'%':'—'],
       ['% de Cumplimiento (semana)', weekPctArea? weekPctArea.pct+'%':'—'],
+      ['% de Cumplimiento (a la fecha)', aLaFechaPctArea? aLaFechaPctArea.pct+'%':'—'],
       ['Vencidos', String(vencidosArea)],
       ['Por vencer', String(porVencerArea)]
     ];
     kpis2.forEach((k,i)=>{
-      const x = 0.4 + i*(W-0.8)/6;
-      s.addShape('roundRect', {x, y:1.6, w:(W-0.8)/6-0.12, h:0.9, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
-      s.addText(k[0], {x:x+0.05,y:1.65,w:(W-0.8)/6-0.2,h:0.35,fontSize:7.5,color:'667085'});
-      s.addText(k[1], {x:x+0.05,y:1.95,w:(W-0.8)/6-0.2,h:0.5,fontSize:14,color:'1B2A4A',bold:true});
+      const x = 0.4 + i*(W-0.8)/kpis2.length;
+      s.addShape('roundRect', {x, y:1.6, w:(W-0.8)/kpis2.length-0.1, h:0.9, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
+      s.addText(k[0], {x:x+0.04,y:1.65,w:(W-0.8)/kpis2.length-0.16,h:0.4,fontSize:6.8,color:'667085'});
+      s.addText(k[1], {x:x+0.04,y:1.98,w:(W-0.8)/kpis2.length-0.16,h:0.5,fontSize:13,color:'1B2A4A',bold:true});
     });
     const sc = {a:0,r:0,p:0,x:0,v:0};
     acts.forEach(a=>{ if(a.status.key==='cumplido_tiempo')sc.a++; else if(a.status.key==='cumplido_retraso')sc.r++; else if(a.status.key==='en_proceso')sc.p++; else if(a.status.key==='por_vencer')sc.x++; else if(a.status.key==='vencido')sc.v++; });
@@ -3120,6 +3127,13 @@ function onTimePctGeneral(acts){
   if(!evaluable.length) return null;
   const onTime = evaluable.filter(a=>a.status.key==='cumplido_tiempo').length;
   return { total: evaluable.length, onTime, pct: Math.round(onTime/evaluable.length*100) };
+}
+function cumplidoPctGeneral(acts){
+  const withStatus = acts.map(a=>({...a, status: computeStatus(a)}));
+  const evaluable = withStatus.filter(a=> ['cumplido_tiempo','cumplido_retraso','vencido'].includes(a.status.key));
+  if(!evaluable.length) return null;
+  const done = evaluable.filter(a=>a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
+  return { total: evaluable.length, done, pct: Math.round(done/evaluable.length*100) };
 }
 function renderGanttNode(project, node, depth){
   const key = (node.edt? node.edt+' ':'') + node.name;
