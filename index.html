@@ -148,7 +148,7 @@
   .overlay{position:fixed;inset:0;background:rgba(19,42,67,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:16px;}
   .overlay.open{display:flex;}
   .modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;position:relative;}
-  .modal-close-x{position:absolute;top:14px;right:16px;width:28px;height:28px;border:none;background:#f0f2f5;border-radius:50%;color:var(--text-soft);font-size:14px;cursor:pointer;line-height:1;z-index:5;}
+  .modal-close-x{position:fixed;width:28px;height:28px;border:none;background:#f0f2f5;border-radius:50%;color:var(--text-soft);font-size:14px;cursor:pointer;line-height:1;z-index:110;}
   .modal-close-x:hover{background:#e4e7ec;color:var(--navy);}
   .modal h3{margin:0 0 4px;font-size:17px;}
   .modal .sub{font-size:12.5px;color:var(--text-soft);margin-bottom:16px;}
@@ -1844,6 +1844,7 @@ function projectWrapSkeleton(p){
         <button class="bypersonbtn" title="Compromisos por responsable">📋 Por Responsable</button>
         <button class="customreportbtn" title="Informe por período">📊 Informe por período</button>
         <button class="ganttbtn" title="Gantt de seguimiento interno">📈 Gantt</button>
+        <button class="ganttreportbtn" title="Informe de avance del proyecto (real vs. propuesto)">📑 Informe de Avance (Gantt)</button>
         <button class="editp">Editar proyecto</button>
         <button class="exportp">Exportar (.json)</button>
         <button class="reportp primary">Generar informe / imprimir</button>
@@ -1861,6 +1862,7 @@ function wireProjectWrap(p){
   wrap.querySelector('.bypersonbtn').addEventListener('click', ()=> openByPersonModal(p.id));
   wrap.querySelector('.customreportbtn').addEventListener('click', ()=> openCustomReportModal(p.id));
   wrap.querySelector('.ganttbtn').addEventListener('click', ()=> openGanttModal(p.id));
+  wrap.querySelector('.ganttreportbtn').addEventListener('click', ()=> generateGanttProgressPPTX(p.id));
   wrap.querySelector('.editp').addEventListener('click', ()=> openProjectModal(p));
   wrap.querySelector('.exportp').addEventListener('click', ()=> exportProject(p));
   wrap.querySelector('.reportp').addEventListener('click', ()=> printProject(p));
@@ -1924,38 +1926,69 @@ function renderPanelGeneral(p){
       <div><h3 class="vh">Panel general</h3><p>Cumplimiento consolidado de compromisos y avance documental de todas las áreas de ${p.empresa}.</p></div>
     </div>
     <div class="kpi-row">
-      <div class="kpi neutral"><div class="kpi-label">Total compromisos</div><div class="kpi-val">${total}</div></div>
-      <div class="kpi warn clickable" onclick="setFilter('${scopeId}','cumplido')"><div class="kpi-label">% de Avance de Compromisos Totales</div><div class="kpi-val">${pct}%</div></div>
-      <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div></div>
+      <div class="kpi proc" title="De todos los compromisos cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron — no se resetea cada semana ni se mezcla con compromisos futuros"><div class="kpi-label">% Cumplimiento acumulado de lo vencido</div><div class="kpi-val">${aLaFechaPct? aLaFechaPct.pct+'%' : '—'}</div></div>
+      <div class="kpi ok" title="De los compromisos que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de la Semana</div><div class="kpi-val">${weekPct? weekPct.pct+'%' : '—'}</div></div>
+      <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con cada área"><div class="kpi-label">% Avance del Gantt hasta la fecha</div><div class="kpi-val">${ganttGeneral!==null? ganttGeneral+'%' : '—'}</div></div>
+      <div class="kpi neutral"><div class="kpi-label">Total de Actividades Programadas</div><div class="kpi-val">${total}</div></div>
+      <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">Actividades en Proceso</div><div class="kpi-val">${enProceso}</div></div>
+      <div class="kpi bad clickable" onclick="setFilter('${scopeId}','vencido')"><div class="kpi-label">Actividades Vencidas</div><div class="kpi-val">${vencidos}</div></div>
+      <div class="kpi neutral"><div class="kpi-label">Días de Atraso</div><div class="kpi-val">${atrasoProm}d</div></div>
       <div class="kpi warn clickable" onclick="setFilter('${scopeId}','por_vencer')"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
-      <div class="kpi bad clickable" onclick="setFilter('${scopeId}','vencido')"><div class="kpi-label">Vencidos</div><div class="kpi-val">${vencidos}</div></div>
-      <div class="kpi neutral"><div class="kpi-label">Atraso promedio</div><div class="kpi-val">${atrasoProm}d</div></div>
-      <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con cada área"><div class="kpi-label">% A tiempo (general, Gantt)</div><div class="kpi-val">${ganttGeneral!==null? ganttGeneral+'%' : '—'}</div></div>
-      <div class="kpi ok" title="De los compromisos que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de Cumplimiento</div><div class="kpi-val">${weekPct? weekPct.pct+'%' : '—'}</div></div>
-      <div class="kpi proc" title="De todos los compromisos cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron — no se resetea cada semana ni se mezcla con compromisos futuros"><div class="kpi-label">% de Cumplimiento (a la fecha)</div><div class="kpi-val">${aLaFechaPct? aLaFechaPct.pct+'%' : '—'}</div></div>
     </div>
     <div class="charts-row">
       <div class="chart-card"><h4>Estatus global de compromisos</h4><canvas id="chart-${p.id}-gen-status"></canvas></div>
       <div class="chart-card"><h4>% Revisado con jefe, por área</h4><canvas id="chart-${p.id}-gen-docs"></canvas></div>
     </div>
     <div class="docs-section">
-      <h3 class="section-title" style="margin-bottom:10px;">% de Cumplimiento (semana), por área</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <h3 class="section-title" style="margin-bottom:12px;">Resumen por área — todos los KPIs</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
         ${p.areas.map(a=>{
           const wr = getCurrentWeekRange();
           const wp = cumplidoPctForActs(a.activities, wr.start, wr.end);
-          const pctVal = wp? wp.pct : null;
-          const barColor = pctVal===null? '#d8dce2' : (pctVal>=80?'#178a4c':(pctVal>=50?'#c17d0e':'#c22b2b'));
-          return `<div style="display:flex;align-items:center;gap:7px;background:#f7f9fb;border:1px solid var(--border);border-radius:20px;padding:5px 12px 5px 8px;font-size:12px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.color};"></span>
-            <span style="color:#44506B;">${a.label}</span>
-            <span style="font-weight:700;color:${barColor};">${pctVal!==null? pctVal+'%' : '—'}</span>
+          const afp = cumplidoPctGeneral(a.activities);
+          const gAvg = ganttAvgForArea(p, a.key);
+          const actsA = a.activities.map(x=>({...x, status:computeStatus(x)}));
+          const totalA = actsA.length;
+          const enProcA = actsA.filter(x=>x.status.key==='en_proceso').length;
+          const vencA = actsA.filter(x=>x.status.key==='vencido').length;
+          const porVenA = actsA.filter(x=>x.status.key==='por_vencer').length;
+          const atrasos = actsA.filter(x=>x.status.key==='cumplido_retraso').map(x=>Math.max(0, Math.round((new Date(x.fechaCumplida)-new Date(x.fechaLimite))/86400000)));
+          const atrasoA = atrasos.length? Math.round(atrasos.reduce((s,d)=>s+d,0)/atrasos.length) : 0;
+          const bar = (label, val) => {
+            const v = val===null? null : val;
+            const color = v===null? '#d8dce2' : (v>=80?'#178a4c':(v>=50?'#c17d0e':'#c22b2b'));
+            return `<div style="flex:1;min-width:130px;">
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#667085;margin-bottom:2px;"><span>${label}</span><span style="font-weight:700;color:${color};">${v!==null? v+'%':'—'}</span></div>
+              <div style="height:6px;background:#eef1f5;border-radius:4px;overflow:hidden;"><div style="height:100%;width:${v||0}%;background:${color};"></div></div>
+            </div>`;
+          };
+          const badge = (label, val, color) => `<div style="text-align:center;min-width:52px;">
+            <div style="font-size:9px;color:#667085;">${label}</div>
+            <div style="font-size:14px;font-weight:700;color:${color};">${val}</div>
+          </div>`;
+          return `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 14px;background:#fff;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-weight:700;font-size:13px;color:#1B2A4A;">
+              <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${a.color};"></span>${a.label}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+              ${bar('% Vencido acum.', afp? afp.pct : null)}
+              ${bar('% Semana', wp? wp.pct : null)}
+              ${bar('% Gantt', gAvg)}
+              ${badge('Total', totalA, '#1B2A4A')}
+              ${badge('Proceso', enProcA, '#2563eb')}
+              ${badge('Vencidas', vencA, '#c22b2b')}
+              ${badge('Atraso(d)', atrasoA, '#667085')}
+              ${badge('Por vencer', porVenA, '#c17d0e')}
+            </div>
           </div>`;
         }).join('')}
       </div>
     </div>
     <div class="docs-section">
-      <div class="section-head"><h3 class="section-title">Compromisos por área</h3></div>
+      <div class="section-head" style="cursor:pointer;" onclick="toggleSection('${scopeId}-tbl')">
+        <h3 class="section-title"><span style="display:inline-block;width:14px;">${isSectionOpen(scopeId+'-tbl')?'▾':'▸'}</span> Compromisos por área</h3>
+      </div>
+      ${isSectionOpen(scopeId+'-tbl') ? `
       ${filterBar(scopeId)}
       <table><thead><tr><th>Área</th><th>Actividad</th><th>Responsable</th><th>Vence</th><th>Estatus</th></tr></thead>
       <tbody>
@@ -1965,7 +1998,7 @@ function renderPanelGeneral(p){
           <td>${numDesc(a.desc, a.localIndex)}</td><td>${respLabel(a, p)}</td><td>${fmtDate(a.fechaLimite)}</td>
           <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con este estatus.</td></tr>`}
-      </tbody></table>
+      </tbody></table>` : ''}
     </div>
   `;
 
@@ -2018,7 +2051,7 @@ function renderAreaView(p, area){
 
     <div class="docs-section">
       <div class="section-head">
-        <h3 class="section-title">Avance documental (acumulado)</h3>
+        <h3 class="section-title" style="cursor:pointer;" onclick="toggleSection('${p.id}-${area.key}-docs')"><span style="display:inline-block;width:14px;">${isSectionOpen(p.id+'-'+area.key+'-docs')?'▾':'▸'}</span> Avance documental (acumulado)</h3>
         <button class="add-btn" onclick="openDocModal('${p.id}','${area.key}', null)">+ Agregar documento</button>
       </div>
       <div class="kpi-row">
@@ -2027,6 +2060,7 @@ function renderAreaView(p, area){
         <div class="kpi proc"><div class="kpi-label">% Revisado con jefe</div><div class="kpi-val">${ds.revisado}%</div></div>
         <div class="kpi warn"><div class="kpi-label">% Con registros de uso</div><div class="kpi-val">${ds.registros}%</div></div>
       </div>
+      ${isSectionOpen(p.id+'-'+area.key+'-docs') ? `
       <table class="docs-table">
         <thead><tr><th>Código</th><th>Documento</th><th>Tipo</th><th>Elaborado/Firmado</th><th>Revisado c/ Jefe</th><th>Registros de Uso</th><th class="actions-col"></th></tr></thead>
         <tbody>
@@ -2043,29 +2077,29 @@ function renderAreaView(p, area){
             </div></td>
           </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Sin documentos registrados todavía.</td></tr>`}
         </tbody>
-      </table>
+      </table>` : ''}
     </div>
 
     <div class="docs-section">
       <div class="section-head">
-        <h3 class="section-title">Seguimiento semanal de compromisos</h3>
+        <h3 class="section-title" style="cursor:pointer;" onclick="toggleSection('${scopeId}-tbl')"><span style="display:inline-block;width:14px;">${isSectionOpen(scopeId+'-tbl')?'▾':'▸'}</span> Seguimiento semanal de compromisos</h3>
         <button class="add-btn" onclick="openActivityModal('${p.id}','${area.key}', null)">+ Nuevo compromiso</button>
       </div>
       <div class="kpi-row">
-        <div class="kpi neutral"><div class="kpi-label">Total compromisos</div><div class="kpi-val">${total}</div></div>
-        <div class="kpi warn clickable" onclick="setFilter('${scopeId}','cumplido')"><div class="kpi-label">% de Avance de Compromisos Totales</div><div class="kpi-val">${pct}%</div></div>
-        <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div></div>
+        <div class="kpi proc" title="De todos los compromisos de esta área cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron"><div class="kpi-label">% Cumplimiento acumulado de lo vencido</div><div class="kpi-val">${(()=>{const afp=cumplidoPctGeneral(area.activities); return afp? afp.pct+'%' : '—';})()}</div></div>
+        <div class="kpi ok" title="De los compromisos de esta área que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de la Semana</div><div class="kpi-val">${(()=>{const wr=getCurrentWeekRange(); const wp=cumplidoPctForActs(area.activities, wr.start, wr.end); return wp? wp.pct+'%' : '—';})()}</div></div>
+        <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con esta área"><div class="kpi-label">% Avance del Gantt hasta la fecha</div><div class="kpi-val">${(()=>{const g=ganttAvgForArea(p, area.key); return g!==null? g+'%' : '—';})()}</div></div>
+        <div class="kpi neutral"><div class="kpi-label">Total de Actividades Programadas</div><div class="kpi-val">${total}</div></div>
+        <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">Actividades en Proceso</div><div class="kpi-val">${enProceso}</div></div>
+        <div class="kpi bad clickable" onclick="setFilter('${scopeId}','vencido')"><div class="kpi-label">Actividades Vencidas</div><div class="kpi-val">${vencidos}</div></div>
+        <div class="kpi neutral"><div class="kpi-label">Días de Atraso</div><div class="kpi-val">${atrasoProm}d</div></div>
         <div class="kpi warn clickable" onclick="setFilter('${scopeId}','por_vencer')"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
-        <div class="kpi bad clickable" onclick="setFilter('${scopeId}','vencido')"><div class="kpi-label">Vencidos</div><div class="kpi-val">${vencidos}</div></div>
-        <div class="kpi neutral"><div class="kpi-label">Atraso promedio</div><div class="kpi-val">${atrasoProm}d</div></div>
-        <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con esta área"><div class="kpi-label">% A tiempo (general, Gantt)</div><div class="kpi-val">${(()=>{const g=ganttAvgForArea(p, area.key); return g!==null? g+'%' : '—';})()}</div></div>
-        <div class="kpi ok" title="De los compromisos de esta área que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de Cumplimiento</div><div class="kpi-val">${(()=>{const wr=getCurrentWeekRange(); const wp=cumplidoPctForActs(area.activities, wr.start, wr.end); return wp? wp.pct+'%' : '—';})()}</div></div>
-        <div class="kpi proc" title="De todos los compromisos de esta área cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron"><div class="kpi-label">% de Cumplimiento (a la fecha)</div><div class="kpi-val">${(()=>{const afp=cumplidoPctGeneral(area.activities); return afp? afp.pct+'%' : '—';})()}</div></div>
       </div>
       <div class="charts-row">
         <div class="chart-card"><h4>Distribución de estatus</h4><canvas id="chart-${p.id}-${area.key}-status"></canvas></div>
         <div class="chart-card"><h4>Cumplimiento (a tiempo vs. con retraso)</h4><canvas id="chart-${p.id}-${area.key}-cump"></canvas></div>
       </div>
+      ${isSectionOpen(scopeId+'-tbl') ? `
       ${filterBar(scopeId)}
       <table>
         <thead><tr><th>Actividad</th><th>Responsable</th><th>Compromiso</th><th>Vence</th><th>Cumplida</th><th>Estatus</th><th class="actions-col"></th></tr></thead>
@@ -2082,7 +2116,7 @@ function renderAreaView(p, area){
             </div></td>
           </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Sin compromisos con este estatus.</td></tr>`}
         </tbody>
-      </table>
+      </table>` : ''}
     </div>
   `;
 
@@ -2126,19 +2160,38 @@ function mkChart(canvasId, type, data, extraOptions){
 }
 
 /* ================= Modal helpers ================= */
+function positionModalCloseButtons(){
+  document.querySelectorAll('.overlay.open').forEach(overlay=>{
+    const modal = overlay.querySelector('.modal');
+    const btn = overlay.querySelector(':scope > .modal-close-x');
+    if(!modal || !btn) return;
+    const rect = modal.getBoundingClientRect();
+    btn.style.top = (rect.top+12)+'px';
+    btn.style.left = (rect.right-12-28)+'px';
+  });
+}
+window.addEventListener('resize', positionModalCloseButtons);
+window.__sectionOpen = window.__sectionOpen || {};
+function isSectionOpen(id){ return !!window.__sectionOpen[id]; }
+function toggleSection(id){
+  window.__sectionOpen[id] = !window.__sectionOpen[id];
+  renderAll();
+}
 function openModal(id){
   const overlay = document.getElementById(id);
   overlay.classList.add('open');
   const modal = overlay.querySelector('.modal');
-  if(modal && !modal.querySelector('.modal-close-x')){
-    const btn = document.createElement('button');
+  let btn = overlay.querySelector(':scope > .modal-close-x');
+  if(modal && !btn){
+    btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'modal-close-x';
     btn.innerHTML = '✕';
     btn.setAttribute('aria-label','Cerrar');
     btn.addEventListener('click', ()=> closeModal(id));
-    modal.insertBefore(btn, modal.firstChild);
+    overlay.appendChild(btn);
   }
+  requestAnimationFrame(positionModalCloseButtons);
 }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
@@ -2861,6 +2914,102 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
 
 let byPersonGroupsCache = {};
 let byPersonProjectId = null;
+/* ============ Informe de Avance del Proyecto (Gantt): real vs. propuesto ============ */
+async function generateGanttProgressPPTX(projectId){
+  const project = findProject(projectId);
+  if(!project.gantt || !project.gantt.tasks || !project.gantt.tasks.length){
+    alert('Todavía no se ha subido ningún Gantt para este proyecto. Sube el XML primero desde el botón "📈 Gantt".');
+    return;
+  }
+  const brand = project.color || '132A43';
+  const brandHex = brand.replace('#','').toUpperCase();
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  const W = 10, H = 5.63;
+  const bgTitle = (slide) => {
+    slide.addShape('rect', {x:0,y:0,w:W,h:0.75,fill:{color:'EAEDF2'}});
+    slide.addText('INFORME DE AVANCE DEL PROYECTO — '+project.empresa.toUpperCase(), {x:0.4,y:0.18,w:W-0.8,h:0.4,fontSize:13,color:'44506B'});
+  };
+  const hoy = new Date().toISOString().slice(0,10);
+
+  // Portada
+  let slide = pptx.addSlide();
+  slide.background = {color:'FFFFFF'};
+  if(project.logo) slide.addImage({data:project.logo, x:0.4, y:0.35, w:1.6, h:0.5, sizing:{type:'contain', w:1.6, h:0.5}});
+  slide.addText('OLATI CONSULTING', {x:W-2.6, y:0.4, w:2.2, h:0.4, fontSize:12, color:'888888', align:'right'});
+  slide.addShape('rect', {x:0.9,y:2.1,w:W-1.8,h:1.1,fill:{color:brandHex}});
+  slide.addText('INFORME DE AVANCE DEL PROYECTO', {x:0.9,y:2.1,w:W-1.8,h:1.1,fontSize:22,color:'FFFFFF',align:'center',valign:'middle',bold:true});
+  slide.addText('Avance real (Gantt) vs. avance propuesto (cronograma) — al ' + fmtDate(hoy), {x:0.6,y:3.5,w:W-1.2,h:0.5,fontSize:14,color:'444444',align:'center'});
+  slide.addText(`Actualización del Gantt: ${fmtDate(project.gantt.updatedAt.slice(0,10))}`, {x:0.5,y:H-0.5,w:6,h:0.35,fontSize:10,color:'666666'});
+
+  // Resumen general
+  slide = pptx.addSlide(); bgTitle(slide);
+  slide.addText('Resumen General', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:22,color:'222222'});
+  const ganttGenReal = ganttAvgOverall(project);
+  const allActsGen = project.areas.flatMap(a=>a.activities);
+  const aLaFechaGen = cumplidoPctGeneral(allActsGen);
+  const kpisTop = [
+    ['% Avance real (Gantt)', ganttGenReal!==null? ganttGenReal+'%':'—'],
+    ['% Cumplimiento acumulado de lo vencido', aLaFechaGen? aLaFechaGen.pct+'%':'—']
+  ];
+  kpisTop.forEach((k,i)=>{
+    const x = 0.6 + i*4.5;
+    slide.addShape('roundRect', {x, y:1.7, w:4.2, h:1.1, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.08});
+    slide.addText(k[0], {x:x+0.15,y:1.8,w:3.9,h:0.4,fontSize:11,color:'667085'});
+    slide.addText(k[1], {x:x+0.15,y:2.2,w:3.9,h:0.55,fontSize:26,color:brandHex,bold:true});
+  });
+  slide.addText('Nota: "Avance propuesto" se calcula según las fechas de inicio/fin fijadas en el cronograma del Gantt para cada fase, comparado contra la fecha de hoy. No requiere que ustedes lo actualicen manualmente — se recalcula solo cada vez que se genera este informe.', {x:0.6,y:3.1,w:W-1.2,h:0.7,fontSize:10,italic:true,color:'888888'});
+
+  // Tabla Avance por Área: Real vs Propuesto
+  slide = pptx.addSlide(); bgTitle(slide);
+  slide.addText('Avance por Área — Real vs. Propuesto', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:18,color:'222222'});
+  const rows = [[
+    {text:'Área', options:{bold:true, fill:{color:'EEF1F5'}, color:'44506B', fontSize:10}},
+    {text:'Avance Real', options:{bold:true, fill:{color:'EEF1F5'}, color:'44506B', fontSize:10}},
+    {text:'Avance Propuesto', options:{bold:true, fill:{color:'EEF1F5'}, color:'44506B', fontSize:10}},
+    {text:'Diferencia', options:{bold:true, fill:{color:'EEF1F5'}, color:'44506B', fontSize:10}}
+  ]];
+  project.areas.forEach(a=>{
+    const real = ganttAvgForArea(project, a.key);
+    const prop = ganttProposedAvgForArea(project, a.key);
+    let diffText = '—', diffColor = '667085';
+    if(real!==null && prop!==null){
+      const diff = real - prop;
+      diffText = (diff>=0? '+':'') + diff + ' pts';
+      diffColor = diff>=0? '178A4C' : 'C22B2B';
+    }
+    rows.push([
+      {text:a.label, options:{fontSize:10, color:'2B2F3A'}},
+      {text:real!==null? real+'%':'Sin datos', options:{fontSize:10, color:'2B2F3A'}},
+      {text:prop!==null? prop+'%':'Sin datos', options:{fontSize:10, color:'2B2F3A'}},
+      {text:diffText, options:{fontSize:10, color:diffColor, bold:true}}
+    ]);
+  });
+  slide.addTable(rows, {x:0.4,y:1.7,w:W-0.8,colW:[3.4,2.0,2.2,1.6], fontSize:10, border:{type:'solid',color:'E5E8EC',pt:0.5}, autoPage:true});
+
+  // Gráfico comparativo de barras (Real vs Propuesto)
+  slide = pptx.addSlide(); bgTitle(slide);
+  slide.addText('Comparativo Visual — Real vs. Propuesto', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:18,color:'222222'});
+  const areaLabels = project.areas.map(a=>a.label);
+  const realVals = project.areas.map(a=>{ const v=ganttAvgForArea(project,a.key); return v!==null?v:0; });
+  const propVals = project.areas.map(a=>{ const v=ganttProposedAvgForArea(project,a.key); return v!==null?v:0; });
+  slide.addChart(pptx.ChartType.bar, [
+    {name:'Avance Real', labels:areaLabels, values:realVals},
+    {name:'Avance Propuesto', labels:areaLabels, values:propVals}
+  ], {x:0.4,y:1.7,w:W-0.8,h:3.5, barColors:[brandHex,'A9B3C2'], showLegend:true, legendPos:'b', valAxisMaxVal:100, showValue:true, dataLabelFontSize:7, catAxisLabelFontSize:8});
+
+  // Cierre
+  slide = pptx.addSlide();
+  slide.background = {color:'FFFFFF'};
+  slide.addText('¡Muchas gracias!', {x:0.5,y:1.6,w:W-1,h:0.7,fontSize:26,color:'333333',align:'center'});
+  if(project.logo) slide.addImage({data:project.logo, x:W/2-1.0, y:2.5, w:2.0, h:0.7, sizing:{type:'contain', w:2.0, h:0.7}});
+  slide.addText('OLATI Consulting', {x:0.5,y:3.4,w:W-1,h:0.4,fontSize:14,color:'666666',align:'center'});
+  slide.addText('www.olaticonsulting.com', {x:0.5,y:3.8,w:W-1,h:0.35,fontSize:11,color:'888888',align:'center'});
+
+  const safeEmpresa = (project.empresa||'proyecto').replace(/[^a-z0-9]+/gi,'_');
+  await pptx.writeFile({fileName:`Informe_Avance_Gantt_${safeEmpresa}_${hoy}.pptx`});
+}
+
 function openByPersonModal(projectId){
   const project = findProject(projectId);
   byPersonProjectId = projectId;
@@ -3098,6 +3247,28 @@ function ganttAvgOverall(project){
   });
   if(!matched.length) return null;
   return Math.round(matched.reduce((s,t)=>s+t.pct,0)/matched.length);
+}
+/* ---- Avance propuesto (plan) del Gantt, según fechas de inicio/fin ---- */
+function ganttProposedPct(task){
+  if(!task.start || !task.end) return null;
+  const start = new Date(task.start).getTime();
+  const end = new Date(task.end).getTime();
+  const today = Date.now();
+  if(isNaN(start) || isNaN(end) || end<=start) return null;
+  if(today<=start) return 0;
+  if(today>=end) return 100;
+  return Math.round((today-start)/(end-start)*100);
+}
+function ganttProposedAvgForArea(project, areaKey){
+  const tags = project.ganttAreaTags || {};
+  const tasks = (project.gantt && project.gantt.tasks) || [];
+  const matched = tasks.filter(t=>{
+    const key = (t.edt? t.edt+' ':'') + t.name;
+    return (tags[key]||[]).includes(areaKey);
+  });
+  const withProp = matched.map(t=>ganttProposedPct(t)).filter(v=>v!==null);
+  if(!withProp.length) return null;
+  return Math.round(withProp.reduce((a,b)=>a+b,0)/withProp.length);
 }
 /* ---- % a tiempo (semana actual, en vivo) ---- */
 function getCurrentWeekRange(){
