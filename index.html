@@ -345,7 +345,7 @@
 <!-- Modal: Calendario -->
 <div class="overlay" id="overlayCalendar">
   <div class="modal" style="max-width:840px;">
-    <h3>Calendario de compromisos</h3>
+    <h3>Calendario de actividades</h3>
     <div class="sub">Vencimientos por mes — Agosto a Noviembre 2026</div>
     <div id="calModalBody"></div>
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('overlayCalendar')">Cerrar</button></div>
@@ -411,8 +411,8 @@
 <!-- Modal: Por Responsable -->
 <div class="overlay" id="overlayByPerson">
   <div class="modal" style="max-width:840px;">
-    <h3>Compromisos por responsable</h3>
-    <div class="sub">Desglose de compromisos abiertos, agrupados por persona.</div>
+    <h3>Actividades por responsable</h3>
+    <div class="sub">Desglose de actividades abiertas, agrupadas por persona.</div>
     <div class="field" style="margin-top:10px;"><label>Filtrar por responsable</label><select id="byPersonFilter"></select></div>
     <div id="byPersonBody"></div>
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('overlayByPerson')">Cerrar</button></div>
@@ -502,10 +502,10 @@
 <!-- Modal: Compromiso -->
 <div class="overlay" id="overlayAct">
   <div class="modal">
-    <h3 id="actModalTitle">Nuevo compromiso</h3>
+    <h3 id="actModalTitle">Nueva actividad</h3>
     <div class="sub">Actividad puntual de seguimiento semanal.</div>
     <input type="hidden" id="fId">
-    <div class="field"><label>Actividad</label><textarea id="fDesc" placeholder="Descripción del compromiso"></textarea></div>
+    <div class="field"><label>Actividad</label><textarea id="fDesc" placeholder="Descripción de la actividad"></textarea></div>
     <div class="field"><label>Área</label><select id="fArea"></select><div id="fAreaHint" style="display:none;font-size:12px;color:var(--text-soft);margin-top:4px;">Se guardará en "OLATI Interno", no en el área seleccionada arriba.</div></div>
     <div class="checkline"><input type="checkbox" id="fIsOlati"><label for="fIsOlati" style="margin:0;">Es una actividad institucional de OLATI (sin responsable individual)</label></div>
     <div class="field-row">
@@ -513,7 +513,7 @@
       <div class="field"><label>Responsable 2 (opcional)</label><select id="fResp2"></select></div>
     </div>
     <div class="field-row3">
-      <div class="field"><label>Compromiso (inicio)</label><input type="date" id="fFechaCompromiso"></div>
+      <div class="field"><label>Fecha de inicio</label><input type="date" id="fFechaCompromiso"></div>
       <div class="field"><label>Vence</label><input type="date" id="fFechaLimite"></div>
       <div class="field"><label>Cumplida</label><input type="date" id="fFechaCumplida"></div>
     </div>
@@ -1839,9 +1839,9 @@ function projectWrapSkeleton(p){
         </div>
       </div>
       <div class="pactions">
-        <button class="calbtn" title="Calendario de compromisos">📅 Calendario</button>
+        <button class="calbtn" title="Calendario de actividades">📅 Calendario</button>
         <button class="peoplebtn" title="Registro de personas">👥 Personas</button>
-        <button class="bypersonbtn" title="Compromisos por responsable">📋 Por Responsable</button>
+        <button class="bypersonbtn" title="Actividades por responsable">📋 Por Responsable</button>
         <button class="customreportbtn" title="Informe por período">📊 Informe por período</button>
         <button class="ganttbtn" title="Gantt de seguimiento interno">📈 Gantt</button>
         <button class="ganttreportbtn" title="Informe de avance del proyecto (real vs. propuesto)">📑 Informe de Avance (Gantt)</button>
@@ -1923,11 +1923,11 @@ function renderPanelGeneral(p){
 
   el.innerHTML = `
     <div class="view-head">
-      <div><h3 class="vh">Panel general</h3><p>Cumplimiento consolidado de compromisos y avance documental de todas las áreas de ${p.empresa}.</p></div>
+      <div><h3 class="vh">Panel general</h3><p>Cumplimiento consolidado de actividades y avance documental de todas las áreas de ${p.empresa}.</p></div>
     </div>
     <div class="kpi-row">
-      <div class="kpi proc" title="De todos los compromisos cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron — no se resetea cada semana ni se mezcla con compromisos futuros"><div class="kpi-label">% Cumplimiento acumulado de lo vencido</div><div class="kpi-val">${aLaFechaPct? aLaFechaPct.pct+'%' : '—'}</div></div>
-      <div class="kpi ok" title="De los compromisos que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de la Semana</div><div class="kpi-val">${weekPct? weekPct.pct+'%' : '—'}</div></div>
+      <div class="kpi proc" title="De todas las actividades cuya fecha ya pasó (sin importar la semana), cuántas ya se cumplieron — no se resetea cada semana ni se mezcla con actividades futuras"><div class="kpi-label">% Cumplimiento acumulado de lo vencido</div><div class="kpi-val">${aLaFechaPct? aLaFechaPct.pct+'%' : '—'}</div></div>
+      <div class="kpi ok" title="De las actividades que vencían esta semana, cuántas ya se marcaron como cumplidas (sin exigir puntualidad)"><div class="kpi-label">% de la Semana</div><div class="kpi-val">${weekPct? weekPct.pct+'%' : '—'}</div></div>
       <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con cada área"><div class="kpi-label">% Avance del Gantt hasta la fecha</div><div class="kpi-val">${ganttGeneral!==null? ganttGeneral+'%' : '—'}</div></div>
       <div class="kpi neutral"><div class="kpi-label">Total de Actividades Programadas</div><div class="kpi-val">${total}</div></div>
       <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">Actividades en Proceso</div><div class="kpi-val">${enProceso}</div></div>
@@ -1936,7 +1936,7 @@ function renderPanelGeneral(p){
       <div class="kpi warn clickable" onclick="setFilter('${scopeId}','por_vencer')"><div class="kpi-label">Por vencer (≤5 días)</div><div class="kpi-val">${porVencer}</div></div>
     </div>
     <div class="charts-row">
-      <div class="chart-card"><h4>Estatus global de compromisos</h4><canvas id="chart-${p.id}-gen-status"></canvas></div>
+      <div class="chart-card"><h4>Estatus global de actividades</h4><canvas id="chart-${p.id}-gen-status"></canvas></div>
       <div class="chart-card"><h4>% Revisado con jefe, por área</h4><canvas id="chart-${p.id}-gen-docs"></canvas></div>
     </div>
     <div class="docs-section">
@@ -1986,7 +1986,7 @@ function renderPanelGeneral(p){
     </div>
     <div class="docs-section">
       <div class="section-head" style="cursor:pointer;" onclick="toggleSection('${scopeId}-tbl')">
-        <h3 class="section-title"><span style="display:inline-block;width:14px;">${isSectionOpen(scopeId+'-tbl')?'▾':'▸'}</span> Compromisos por área</h3>
+        <h3 class="section-title"><span style="display:inline-block;width:14px;">${isSectionOpen(scopeId+'-tbl')?'▾':'▸'}</span> Actividades por área</h3>
       </div>
       ${isSectionOpen(scopeId+'-tbl') ? `
       ${filterBar(scopeId)}
@@ -1997,7 +1997,7 @@ function renderPanelGeneral(p){
           <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.areaColor};margin-right:6px;"></span>${a.areaLabel}</td>
           <td>${numDesc(a.desc, a.localIndex)}</td><td>${respLabel(a, p)}</td><td>${fmtDate(a.fechaLimite)}</td>
           <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
-        </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con este estatus.</td></tr>`}
+        </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin actividades con este estatus.</td></tr>`}
       </tbody></table>` : ''}
     </div>
   `;
@@ -2041,7 +2041,7 @@ function renderAreaView(p, area){
       <div>
         <h3 class="vh">${area.label}</h3>
         <p>Responsable del área: <b>${personName(p, area.responsableId) || area.responsable || '— sin asignar'}${area.responsable2Id? ' y ' + personName(p, area.responsable2Id) : ''}</b></p>
-        <p>Avance documental acumulado y seguimiento de compromisos puntuales de la semana.</p>
+        <p>Avance documental acumulado y seguimiento de actividades puntuales de la semana.</p>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="add-btn ghost" onclick="openAreaEditModal('${p.id}','${area.key}')">✎ Editar área</button>
@@ -2082,12 +2082,12 @@ function renderAreaView(p, area){
 
     <div class="docs-section">
       <div class="section-head">
-        <h3 class="section-title" style="cursor:pointer;" onclick="toggleSection('${scopeId}-tbl')"><span style="display:inline-block;width:14px;">${isSectionOpen(scopeId+'-tbl')?'▾':'▸'}</span> Seguimiento semanal de compromisos</h3>
-        <button class="add-btn" onclick="openActivityModal('${p.id}','${area.key}', null)">+ Nuevo compromiso</button>
+        <h3 class="section-title" style="cursor:pointer;" onclick="toggleSection('${scopeId}-tbl')"><span style="display:inline-block;width:14px;">${isSectionOpen(scopeId+'-tbl')?'▾':'▸'}</span> Seguimiento semanal de actividades</h3>
+        <button class="add-btn" onclick="openActivityModal('${p.id}','${area.key}', null)">+ Nueva actividad</button>
       </div>
       <div class="kpi-row">
-        <div class="kpi proc" title="De todos los compromisos de esta área cuya fecha ya pasó (sin importar la semana), cuántos ya se cumplieron"><div class="kpi-label">% Cumplimiento acumulado de lo vencido</div><div class="kpi-val">${(()=>{const afp=cumplidoPctGeneral(area.activities); return afp? afp.pct+'%' : '—';})()}</div></div>
-        <div class="kpi ok" title="De los compromisos de esta área que vencían esta semana, cuántos ya se marcaron como cumplidos (sin exigir puntualidad)"><div class="kpi-label">% de la Semana</div><div class="kpi-val">${(()=>{const wr=getCurrentWeekRange(); const wp=cumplidoPctForActs(area.activities, wr.start, wr.end); return wp? wp.pct+'%' : '—';})()}</div></div>
+        <div class="kpi proc" title="De todas las actividades de esta área cuya fecha ya pasó (sin importar la semana), cuántas ya se cumplieron"><div class="kpi-label">% Cumplimiento acumulado de lo vencido</div><div class="kpi-val">${(()=>{const afp=cumplidoPctGeneral(area.activities); return afp? afp.pct+'%' : '—';})()}</div></div>
+        <div class="kpi ok" title="De las actividades de esta área que vencían esta semana, cuántas ya se marcaron como cumplidas (sin exigir puntualidad)"><div class="kpi-label">% de la Semana</div><div class="kpi-val">${(()=>{const wr=getCurrentWeekRange(); const wp=cumplidoPctForActs(area.activities, wr.start, wr.end); return wp? wp.pct+'%' : '—';})()}</div></div>
         <div class="kpi proc" title="Promedio del Gantt en los ítems etiquetados con esta área"><div class="kpi-label">% Avance del Gantt hasta la fecha</div><div class="kpi-val">${(()=>{const g=ganttAvgForArea(p, area.key); return g!==null? g+'%' : '—';})()}</div></div>
         <div class="kpi neutral"><div class="kpi-label">Total de Actividades Programadas</div><div class="kpi-val">${total}</div></div>
         <div class="kpi proc clickable" onclick="setFilter('${scopeId}','en_proceso')"><div class="kpi-label">Actividades en Proceso</div><div class="kpi-val">${enProceso}</div></div>
@@ -2102,7 +2102,7 @@ function renderAreaView(p, area){
       ${isSectionOpen(scopeId+'-tbl') ? `
       ${filterBar(scopeId)}
       <table>
-        <thead><tr><th>Actividad</th><th>Responsable</th><th>Compromiso</th><th>Vence</th><th>Cumplida</th><th>Estatus</th><th class="actions-col"></th></tr></thead>
+        <thead><tr><th>Actividad</th><th>Responsable</th><th>Inicio</th><th>Vence</th><th>Cumplida</th><th>Estatus</th><th class="actions-col"></th></tr></thead>
         <tbody>
         ${filtered.length? filtered.map(a=>`
           <tr>
@@ -2114,7 +2114,7 @@ function renderAreaView(p, area){
               <button onclick="openActivityModal('${p.id}','${area.key}','${a.id}')">✎</button>
               <button class="del" onclick="deleteActivity('${p.id}','${area.key}','${a.id}')">✕</button>
             </div></td>
-          </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Sin compromisos con este estatus.</td></tr>`}
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Sin actividades con este estatus.</td></tr>`}
         </tbody>
       </table>` : ''}
     </div>
@@ -2432,7 +2432,7 @@ function openActivityModal(projectId, areaKey, actId){
   actModalCtx = {projectId, areaKey, actId};
   const project = findProject(projectId); const area = findArea(project, areaKey);
   const a = actId? area.activities.find(x=>x.id===actId) : null;
-  document.getElementById('actModalTitle').textContent = a? 'Editar compromiso' : 'Nuevo compromiso';
+  document.getElementById('actModalTitle').textContent = a? 'Editar actividad' : 'Nueva actividad';
   document.getElementById('fId').value = actId||'';
   document.getElementById('fDesc').value = a? stripNum(a.desc) : '';
   document.getElementById('fFechaCompromiso').value = a? a.fechaCompromiso : new Date().toISOString().slice(0,10);
@@ -2506,7 +2506,7 @@ document.getElementById('fSaveBtn').addEventListener('click', ()=>{
 });
 document.getElementById('fDeleteBtn').addEventListener('click', ()=>{
   const {projectId, areaKey, actId} = actModalCtx;
-  if(!confirm('¿Eliminar este compromiso? Esta acción no se puede deshacer.')) return;
+  if(!confirm('¿Eliminar esta actividad? Esta acción no se puede deshacer.')) return;
   runMutation((freshData)=>{
     const p = findProject(projectId, freshData); if(!p) return;
     const area = findArea(p, areaKey); if(!area) return;
@@ -2524,7 +2524,7 @@ function markDone(projectId, areaKey, actId){
   });
 }
 function deleteActivity(projectId, areaKey, actId){
-  if(!confirm('¿Eliminar este compromiso? Esta acción no se puede deshacer.')) return;
+  if(!confirm('¿Eliminar esta actividad? Esta acción no se puede deshacer.')) return;
   runMutation((freshData)=>{
     const p = findProject(projectId, freshData); if(!p) return;
     const area = findArea(p, areaKey); if(!area) return;
@@ -2532,7 +2532,7 @@ function deleteActivity(projectId, areaKey, actId){
   });
 }
 function deleteArea(projectId, areaKey){
-  if(!confirm('¿Eliminar esta área y todo su contenido (documentos y compromisos)? Esta acción no se puede deshacer.')) return;
+  if(!confirm('¿Eliminar esta área y todo su contenido (documentos y actividades)? Esta acción no se puede deshacer.')) return;
   currentAreaKey = 'general';
   runMutation((freshData)=>{
     const p = findProject(projectId, freshData); if(!p) return;
@@ -2616,7 +2616,7 @@ document.getElementById('personSaveBtn').addEventListener('click', ()=>{
 });
 document.getElementById('personDeleteBtn').addEventListener('click', ()=>{
   const { projectId, personId } = personFormCtx;
-  if(!confirm('¿Eliminar esta persona del registro? Los compromisos que ya le mencionan como responsable no se modifican.')) return;
+  if(!confirm('¿Eliminar esta persona del registro? Las actividades que ya le mencionan como responsable no se modifican.')) return;
   runMutation((freshData)=>{
     const p = findProject(projectId, freshData); if(!p) return;
     p.people = (p.people||[]).filter(x=>x.id!==personId);
@@ -2710,10 +2710,34 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_16x9';
   const W = 10, H = 5.63;
+  const DONUT_COLORS = ['178A4C','E67E22','2563EB','F5B041','C22B2B']; // a tiempo, con retraso, en proceso, por vencer, vencido
 
   const bgTitle = (slide, kicker) => {
     slide.addShape('rect', {x:0,y:0,w:W,h:0.75,fill:{color:'EAEDF2'}});
     slide.addText((kicker||'SEGUIMIENTO')+' — '+project.empresa.toUpperCase(), {x:0.4,y:0.18,w:W-0.8,h:0.4,fontSize:13,color:'44506B',bold:false});
+  };
+  const donutSlide = (title, sc) => {
+    const s = pptx.addSlide(); bgTitle(s);
+    s.addText(title, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:20,color:'222222'});
+    s.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[sc.a,sc.r,sc.p,sc.x,sc.v]}],
+      {x:2.5,y:1.7,w:5,h:3.6, chartColors:DONUT_COLORS, showLegend:true, legendPos:'b', legendFontSize:9, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:11});
+    return s;
+  };
+  const statusCountsFrom = (acts) => {
+    const sc = {a:0,r:0,p:0,x:0,v:0};
+    acts.forEach(a=>{
+      if(a.status.key==='cumplido_tiempo') sc.a++;
+      else if(a.status.key==='cumplido_retraso') sc.r++;
+      else if(a.status.key==='en_proceso') sc.p++;
+      else if(a.status.key==='por_vencer') sc.x++;
+      else if(a.status.key==='vencido') sc.v++;
+    });
+    return sc;
+  };
+  const tableRows = (headerArr, dataRows) => {
+    const headerRow = headerArr.map(h=>({text:h, options:{bold:true, fill:{color:'EEF1F5'}, color:'44506B', fontSize:10}}));
+    const body = dataRows.map(r=> r.map(c=>({text:String(c==null?'—':c), options:{fontSize:9.5, color:'2B2F3A'}})));
+    return [headerRow, ...body];
   };
 
   // ---- 1. Portada ----
@@ -2733,82 +2757,77 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
   slide.addText('Avance General', {x:0.4,y:1.0,w:W-0.8,h:0.6,fontSize:24,color:'222222'});
   const allActs = areas.flatMap(a=>a.activities.map(x=>({...x, status:computeStatus(x)})));
   const total = allActs.length;
-  const cumplidos = allActs.filter(a=>a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
   const vencidosGen = allActs.filter(a=>a.status.key==='vencido').length;
-  const ganttGen = ganttAvgOverall(project);
   const weekPctGen = cumplidoPctForActs(allActs, fi, ff);
   const aLaFechaPctGen = cumplidoPctGeneral(allActs);
   const kpis = [
-    ['Total compromisos', String(total)],
-    ['% de Avance de Compromisos Totales', total? Math.round(cumplidos/total*100)+'%':'—'],
-    ['% A tiempo (Gantt)', ganttGen!==null? ganttGen+'%':'—'],
+    ['Total de Actividades', String(total)],
     ['% de Cumplimiento (semana)', weekPctGen? weekPctGen.pct+'%':'—'],
     ['% de Cumplimiento (a la fecha)', aLaFechaPctGen? aLaFechaPctGen.pct+'%':'—'],
-    ['Vencidos', String(vencidosGen)]
+    ['Vencidas', String(vencidosGen)]
   ];
   kpis.forEach((k,i)=>{
-    const x = 0.4 + i*(W-0.8)/kpis.length;
-    slide.addShape('roundRect', {x, y:1.75, w:(W-0.8)/kpis.length-0.15, h:0.95, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
-    slide.addText(k[0], {x:x+0.05,y:1.82,w:(W-0.8)/kpis.length-0.25,h:0.35,fontSize:8,color:'667085'});
-    slide.addText(k[1], {x:x+0.05,y:2.12,w:(W-0.8)/kpis.length-0.25,h:0.5,fontSize:16,color: k[0]==='Vencidos'&&vencidosGen>0?'C22B2B':'1B2A4A', bold:true});
+    const x = 0.9 + i*(W-1.8)/kpis.length;
+    slide.addShape('roundRect', {x, y:1.75, w:(W-1.8)/kpis.length-0.15, h:0.95, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
+    slide.addText(k[0], {x:x+0.05,y:1.82,w:(W-1.8)/kpis.length-0.25,h:0.35,fontSize:9,color:'667085'});
+    slide.addText(k[1], {x:x+0.05,y:2.12,w:(W-1.8)/kpis.length-0.25,h:0.5,fontSize:18,color: k[0]==='Vencidas'&&vencidosGen>0?'C22B2B':'1B2A4A', bold:true});
   });
-  const statusCounts = {a:0,r:0,p:0,v:0,x:0};
-  allActs.forEach(a=>{
-    if(a.status.key==='cumplido_tiempo') statusCounts.a++;
-    else if(a.status.key==='cumplido_retraso') statusCounts.r++;
-    else if(a.status.key==='en_proceso') statusCounts.p++;
-    else if(a.status.key==='por_vencer') statusCounts.x++;
-    else if(a.status.key==='vencido') statusCounts.v++;
-  });
-  slide.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[statusCounts.a,statusCounts.r,statusCounts.p,statusCounts.x,statusCounts.v]}],
-    {x:0.4,y:2.95,w:4.3,h:2.35, chartColors:['178A4C','7D8F1F','2563EB','C17D0E','C22B2B'], showLegend:true, legendPos:'b', legendFontSize:8, dataLabelColor:'FFFFFF', title:'Estatus global de compromisos', titleFontSize:11});
-  slide.addChart(pptx.ChartType.bar, [{name:'% A tiempo (Gantt)', labels:areas.map(a=>a.label), values:areas.map(a=>{const g=ganttAvgForArea(project,a.key); return g!==null?g:0;})}],
-    {x:5.0,y:2.95,w:4.6,h:2.35, barColor:brandHex, showValue:true, dataLabelFontSize:8, catAxisLabelFontSize:8, valAxisMaxVal:100, title:'% A tiempo (Gantt), por área', titleFontSize:11});
+  const scGen = statusCountsFrom(allActs);
+  slide.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[scGen.a,scGen.r,scGen.p,scGen.x,scGen.v]}],
+    {x:2.5,y:2.95,w:5,h:2.5, chartColors:DONUT_COLORS, showLegend:true, legendPos:'b', legendFontSize:8, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:10, title:'Estatus global de actividades', titleFontSize:11});
 
-  // ---- 3. Compromisos Vencidos General ----
-  const allVencidos = areas.flatMap(a=>a.activities.map((x,i)=>({...x, status:computeStatus(x), areaLabel:a.label, areaIdx:i+1})))
-    .filter(a=>a.status.key==='vencido');
+  // ---- 3. Cumplidas en el período (General) ----
+  const inPeriodGen = allActs.filter(a=> a.fechaLimite>=fi && a.fechaLimite<=ff);
+  const cumplidasGen = inPeriodGen.filter(a=> a.fechaCumplida);
   slide = pptx.addSlide(); bgTitle(slide);
-  slide.addText('Compromisos Vencidos General', {x:0.4,y:1.0,w:W-0.8,h:0.6,fontSize:22,color:'222222'});
-  if(allVencidos.length){
-    const rows = pptxRows(['Área','Actividad','Responsable','Vence','Estatus'],
-      allVencidos.slice(0,14).map(a=>[a.areaLabel, stripNum(a.desc), respLabel(a,project), fmtDate(a.fechaLimite), a.status.text]));
-    slide.addTable(rows, {x:0.4,y:1.75,w:W-0.8,colW:[1.2,3.4,2.0,1.0,1.4], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}, autoPage:false});
+  slide.addText('Actividades Cumplidas en el Período (General)', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:18,color:'178A4C'});
+  if(cumplidasGen.length){
+    const withArea = areas.flatMap(a=>a.activities.map((x,i)=>({...x, status:computeStatus(x), areaLabel:a.label, localIndex:i+1})))
+      .filter(a=>a.fechaLimite>=fi && a.fechaLimite<=ff && a.fechaCumplida);
+    slide.addTable(tableRows(['Área','Actividad','Responsable','Vence','Cumplida'],
+      withArea.slice(0,14).map(a=>[a.areaLabel, numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), fmtDate(a.fechaCumplida)])),
+      {x:0.4,y:1.7,w:W-0.8,colW:[1.2,3.6,2.0,1.1,1.1], fontSize:9, border:{type:'solid',color:'E5E8EC',pt:0.5}});
   } else {
-    slide.addText('Sin compromisos vencidos en este momento. 🎉', {x:0.4,y:2.2,w:W-0.8,h:0.6,fontSize:14,color:'178A4C'});
+    slide.addText('Sin actividades cumplidas en este período.', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:12,color:'667085'});
   }
 
-  // ---- 4. Próxima semana ----
+  // ---- 4. Vencidas en el período (General) ----
+  const vencidasGenPeriodo = inPeriodGen.filter(a=> !a.fechaCumplida);
+  slide = pptx.addSlide(); bgTitle(slide);
+  slide.addText('Actividades Vencidas en el Período (General)', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:18,color:'C22B2B'});
+  if(vencidasGenPeriodo.length){
+    const withArea = areas.flatMap(a=>a.activities.map((x,i)=>({...x, status:computeStatus(x), areaLabel:a.label, localIndex:i+1})))
+      .filter(a=>a.fechaLimite>=fi && a.fechaLimite<=ff && !a.fechaCumplida);
+    slide.addTable(tableRows(['Área','Actividad','Responsable','Vence','Estatus'],
+      withArea.slice(0,14).map(a=>[a.areaLabel, numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), a.status.text])),
+      {x:0.4,y:1.7,w:W-0.8,colW:[1.2,3.4,1.9,1.0,1.5], fontSize:9, border:{type:'solid',color:'E5E8EC',pt:0.5}});
+  } else {
+    slide.addText('Sin actividades vencidas en este período. 🎉', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:12,color:'178A4C'});
+  }
+
+  // ---- 5. Próxima semana (General) ----
   const nStart = addDaysISO(ff,1), nEnd = addDaysISO(ff,7);
-  slide = pptx.addSlide(); bgTitle(slide);
-  slide.addText(`Compromisos para la próxima semana (${fmtDate(nStart)} al ${fmtDate(nEnd)})`, {x:0.4,y:1.0,w:W-0.8,h:0.6,fontSize:18,color:'222222'});
-  const nextWeekActs = areas.flatMap(a=>a.activities.map(x=>({...x, status:computeStatus(x), areaLabel:a.label})))
+  const nextWeekActsGen = areas.flatMap(a=>a.activities.map((x,i)=>({...x, status:computeStatus(x), areaLabel:a.label, localIndex:i+1})))
     .filter(a=>a.fechaLimite>=nStart && a.fechaLimite<=nEnd);
-  if(nextWeekActs.length){
-    const rows = pptxRows(['Área','Actividad','Responsable','Vence'],
-      nextWeekActs.slice(0,12).map(a=>[a.areaLabel, stripNum(a.desc), respLabel(a,project), fmtDate(a.fechaLimite)]));
-    slide.addTable(rows, {x:0.4,y:1.7,w:6.0,colW:[1.0,2.6,1.6,0.8], fontSize:9, border:{type:'solid',color:'E5E8EC',pt:0.5}});
+  slide = pptx.addSlide(); bgTitle(slide);
+  slide.addText(`Actividades para la Próxima Semana — General (${fmtDate(nStart)} al ${fmtDate(nEnd)})`, {x:0.4,y:1.0,w:W-0.8,h:0.6,fontSize:16,color:'222222'});
+  if(nextWeekActsGen.length){
+    slide.addTable(tableRows(['Área','Actividad','Responsable','Vence'],
+      nextWeekActsGen.slice(0,14).map(a=>[a.areaLabel, numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite)])),
+      {x:0.4,y:1.8,w:W-0.8,colW:[1.2,3.8,2.2,1.6], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
   } else {
-    slide.addText('Sin compromisos programados todavía para la próxima semana.', {x:0.4,y:1.9,w:5.8,h:0.5,fontSize:11,color:'667085'});
+    slide.addText('Sin actividades programadas todavía para la próxima semana.', {x:0.4,y:2.1,w:W-0.8,h:0.5,fontSize:12,color:'667085'});
   }
-  slide.addText('% A tiempo (Gantt) por área', {x:6.7,y:1.65,w:2.9,h:0.3,fontSize:10,bold:true,color:'44506B'});
-  areas.forEach((a,i)=>{
-    const g = ganttAvgForArea(project, a.key);
-    slide.addText(a.label, {x:6.7,y:2.0+i*0.33,w:1.6,h:0.3,fontSize:9,color:'333333'});
-    slide.addText(g!==null? g+'%':'—', {x:8.3,y:2.0+i*0.33,w:1.0,h:0.3,fontSize:9,bold:true,color:brandHex,align:'right'});
-  });
 
-  // ---- 5. Por cada área: divisor + avance + cumplidos + por vencer + conclusiones ----
+  // ---- 6. Por cada área: divisor + avance + cumplidas + vencidas + próxima semana + conclusiones ----
   areas.forEach(area=>{
     const acts = area.activities.map((a,i)=>({...a, status:computeStatus(a), localIndex:i+1}));
     const inPeriod = acts.filter(a=> a.fechaLimite>=fi && a.fechaLimite<=ff);
-    const cumplidosArea = inPeriod.filter(a=>a.fechaCumplida && a.fechaCumplida<=ff);
-    const pendientesArea = inPeriod.filter(a=>!cumplidosArea.includes(a));
+    const cumplidasArea = inPeriod.filter(a=>a.fechaCumplida);
+    const vencidasAreaPeriodo = inPeriod.filter(a=>!a.fechaCumplida);
+    const nextWeekArea = acts.filter(a=>a.fechaLimite>=nStart && a.fechaLimite<=nEnd);
     const vencidosArea = acts.filter(a=>a.status.key==='vencido').length;
-    const porVencerArea = acts.filter(a=>a.status.key==='por_vencer').length;
     const totalArea = acts.length;
-    const cumplTotalArea = acts.filter(a=>a.status.key==='cumplido_tiempo'||a.status.key==='cumplido_retraso').length;
-    const ganttArea = ganttAvgForArea(project, area.key);
     const weekPctArea = cumplidoPctForActs(area.activities, fi, ff);
     const aLaFechaPctArea = cumplidoPctGeneral(area.activities);
 
@@ -2820,87 +2839,90 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
       s.addText('Responsable: '+(personName(project,area.responsableId)||area.responsable), {x:0.5,y:H/2+0.35,w:W-1,h:0.4,fontSize:13,color:'DCE3EE',align:'center'});
     }
 
-    // Avance
+    // Avance (4 KPIs + dona, sin barras)
     s = pptx.addSlide(); bgTitle(s);
     s.addText(`Avance ${area.label}`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:22,color:'222222'});
     const kpis2 = [
-      ['Total', String(totalArea)],
-      ['% de Avance de Compromisos Totales', totalArea? Math.round(cumplTotalArea/totalArea*100)+'%':'—'],
-      ['% A tiempo (Gantt)', ganttArea!==null? ganttArea+'%':'—'],
+      ['Total de Actividades', String(totalArea)],
       ['% de Cumplimiento (semana)', weekPctArea? weekPctArea.pct+'%':'—'],
       ['% de Cumplimiento (a la fecha)', aLaFechaPctArea? aLaFechaPctArea.pct+'%':'—'],
-      ['Vencidos', String(vencidosArea)],
-      ['Por vencer', String(porVencerArea)]
+      ['Vencidas', String(vencidosArea)]
     ];
     kpis2.forEach((k,i)=>{
-      const x = 0.4 + i*(W-0.8)/kpis2.length;
-      s.addShape('roundRect', {x, y:1.6, w:(W-0.8)/kpis2.length-0.1, h:0.9, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
-      s.addText(k[0], {x:x+0.04,y:1.65,w:(W-0.8)/kpis2.length-0.16,h:0.4,fontSize:6.8,color:'667085'});
-      s.addText(k[1], {x:x+0.04,y:1.98,w:(W-0.8)/kpis2.length-0.16,h:0.5,fontSize:13,color:'1B2A4A',bold:true});
+      const x = 0.9 + i*(W-1.8)/kpis2.length;
+      s.addShape('roundRect', {x, y:1.7, w:(W-1.8)/kpis2.length-0.15, h:0.9, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
+      s.addText(k[0], {x:x+0.05,y:1.75,w:(W-1.8)/kpis2.length-0.2,h:0.4,fontSize:9,color:'667085'});
+      s.addText(k[1], {x:x+0.05,y:2.08,w:(W-1.8)/kpis2.length-0.2,h:0.5,fontSize:16,color:'1B2A4A',bold:true});
     });
-    const sc = {a:0,r:0,p:0,x:0,v:0};
-    acts.forEach(a=>{ if(a.status.key==='cumplido_tiempo')sc.a++; else if(a.status.key==='cumplido_retraso')sc.r++; else if(a.status.key==='en_proceso')sc.p++; else if(a.status.key==='por_vencer')sc.x++; else if(a.status.key==='vencido')sc.v++; });
-    s.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[sc.a,sc.r,sc.p,sc.x,sc.v]}],
-      {x:0.4,y:2.7,w:4.3,h:2.6, chartColors:['178A4C','7D8F1F','2563EB','C17D0E','C22B2B'], showLegend:true, legendPos:'b', legendFontSize:8, title:'Distribución de estatus', titleFontSize:11});
-    s.addChart(pptx.ChartType.bar, [{name:'Compromisos', labels:['A tiempo','Con retraso','Vencidos'], values:[sc.a,sc.r,sc.v]}],
-      {x:5.0,y:2.7,w:4.6,h:2.6, barColor:brandHex, showValue:true, title:'Cumplimiento', titleFontSize:11});
+    const scArea = statusCountsFrom(acts);
+    s.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[scArea.a,scArea.r,scArea.p,scArea.x,scArea.v]}],
+      {x:2.5,y:2.75,w:5,h:2.6, chartColors:DONUT_COLORS, showLegend:true, legendPos:'b', legendFontSize:9, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:11, title:'Distribución de estatus', titleFontSize:11});
 
-    // Cumplidos
+    // Cumplidas en el período
     s = pptx.addSlide(); bgTitle(s);
-    s.addText(`Compromisos ${area.label} — Cumplidos en el período`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:16,color:'178A4C'});
-    if(cumplidosArea.length){
-      const rows = pptxRows(['Actividad','Responsable','Vence','Cumplida'],
-        cumplidosArea.map(a=>[numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), fmtDate(a.fechaCumplida)]));
-      s.addTable(rows, {x:0.4,y:1.7,w:W-0.8,colW:[4.2,2.4,1.5,1.1], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
+    s.addText(`${area.label} — Cumplidas en el Período`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:16,color:'178A4C'});
+    if(cumplidasArea.length){
+      s.addTable(tableRows(['Actividad','Responsable','Vence','Cumplida'],
+        cumplidasArea.map(a=>[numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), fmtDate(a.fechaCumplida)])),
+        {x:0.4,y:1.7,w:W-0.8,colW:[4.6,2.2,1.5,1.5], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
     } else {
-      s.addText('Sin compromisos cumplidos en este período.', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:11,color:'667085'});
+      s.addText('Sin actividades cumplidas en este período.', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:11,color:'667085'});
     }
 
-    // Por vencer / pendientes
+    // Vencidas en el período
     s = pptx.addSlide(); bgTitle(s);
-    s.addText(`Compromisos ${area.label} — Pendientes / próxima reunión`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:16,color:'C17D0E'});
-    if(pendientesArea.length){
-      const rows = pptxRows(['Actividad','Responsable','Vence','Estatus'],
-        pendientesArea.map(a=>[numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), a.status.text]));
-      s.addTable(rows, {x:0.4,y:1.7,w:W-0.8,colW:[4.2,2.4,1.5,1.1], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
+    s.addText(`${area.label} — Vencidas en el Período`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:16,color:'C22B2B'});
+    if(vencidasAreaPeriodo.length){
+      s.addTable(tableRows(['Actividad','Responsable','Vence','Estatus'],
+        vencidasAreaPeriodo.map(a=>[numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), a.status.text])),
+        {x:0.4,y:1.7,w:W-0.8,colW:[4.6,2.2,1.5,1.5], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
     } else {
-      s.addText('Sin pendientes para este período.', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:11,color:'667085'});
+      s.addText('Sin actividades vencidas en este período. 🎉', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:11,color:'178A4C'});
+    }
+
+    // Próxima semana
+    s = pptx.addSlide(); bgTitle(s);
+    s.addText(`${area.label} — Próxima Semana (${fmtDate(nStart)} al ${fmtDate(nEnd)})`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:15,color:'222222'});
+    if(nextWeekArea.length){
+      s.addTable(tableRows(['Actividad','Responsable','Vence'],
+        nextWeekArea.map(a=>[numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite)])),
+        {x:0.4,y:1.7,w:W-0.8,colW:[5.4,2.4,1.6], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
+    } else {
+      s.addText('Sin actividades programadas todavía para la próxima semana.', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:11,color:'667085'});
     }
 
     // Conclusiones (plantilla automática, editable)
     s = pptx.addSlide(); bgTitle(s);
     s.addText(`Conclusiones — ${area.label}`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:18,color:'222222'});
     const bullets = [
-      `Se registran ${cumplidosArea.length} compromiso(s) cumplido(s) y ${pendientesArea.length} pendiente(s) para el período evaluado.`,
-      `El % de cumplimiento acumulado del área es de ${totalArea? Math.round(cumplTotalArea/totalArea*100):0}%, con ${vencidosArea} compromiso(s) vencido(s) actualmente.`,
-      ganttArea!==null? `Según el Gantt del proyecto, las fases vinculadas a esta área muestran un avance promedio de ${ganttArea}%.` : `Todavía no hay fases del Gantt vinculadas a esta área para calcular su avance cruzado.`,
-      porVencerArea>0? `Hay ${porVencerArea} compromiso(s) por vencer en los próximos días — se recomienda dar seguimiento prioritario.` : `No hay compromisos próximos a vencer en este momento.`
+      `Se registran ${cumplidasArea.length} actividad(es) cumplida(s) y ${vencidasAreaPeriodo.length} vencida(s) en el período evaluado.`,
+      `El % de cumplimiento acumulado a la fecha del área es de ${aLaFechaPctArea? aLaFechaPctArea.pct : 0}%, con ${vencidosArea} actividad(es) vencida(s) actualmente.`,
+      nextWeekArea.length>0? `Hay ${nextWeekArea.length} actividad(es) programada(s) para la próxima semana — se recomienda dar seguimiento prioritario.` : `No hay actividades programadas todavía para la próxima semana.`
     ];
     s.addText(bullets.map(b=>({text:b, options:{bullet:true, breakLine:true, paraSpaceAfter:10}})), {x:0.5,y:1.7,w:W-1,h:3.4,fontSize:13,color:'333333'});
   });
 
-  // ---- 6. Cumplimiento por Personas ----
+  // ---- 7. Cumplimiento por Personas ----
   slide = pptx.addSlide(); bgTitle(slide);
   slide.addText('Cumplimiento por Personas', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:20,color:'222222'});
   const porPersona = computeCumplimientoPorPersona(project, areaKeys, ff);
   const totalsP = porPersona.reduce((s,p)=>({cumplidos:s.cumplidos+p.cumplidos, vencidos:s.vencidos+p.vencidos, evaluable:s.evaluable+p.evaluable, porVencer:s.porVencer+p.porVencer}), {cumplidos:0,vencidos:0,evaluable:0,porVencer:0});
-  const ppRows = pptxRows(['Responsable','Cumplidos','Vencidos','Evaluables','Avance %','Por vencer/proceso'],
+  const ppRows = tableRows(['Responsable','Cumplidas','Vencidas','Evaluables','Avance %','Por vencer/proceso'],
     [...porPersona.map(p=>[p.name, p.cumplidos, p.vencidos, p.evaluable, p.avance!==null? p.avance+'%':'N/A', p.porVencer]),
      ['TOTAL', totalsP.cumplidos, totalsP.vencidos, totalsP.evaluable, totalsP.evaluable? Math.round(totalsP.cumplidos/totalsP.evaluable*100)+'%':'N/A', totalsP.porVencer]]);
   slide.addTable(ppRows, {x:0.4,y:1.6,w:W-0.8,colW:[2.6,1.2,1.2,1.3,1.2,1.7], fontSize:9, border:{type:'solid',color:'E5E8EC',pt:0.5}, autoPage:true, autoPageCharWeight:0});
 
-  // ---- 7. Conclusión General ----
+  // ---- 8. Conclusión General ----
   slide = pptx.addSlide(); bgTitle(slide);
   slide.addText('Conclusión General', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:20,color:'222222'});
   const generalBullets = [
-    `El proyecto ${project.empresa} presenta ${total} compromisos activos, con un ${total?Math.round(cumplidos/total*100):0}% de cumplimiento general.`,
-    `Se registran ${vencidosGen} compromiso(s) vencido(s) al cierre de este período, requiriendo atención prioritaria.`,
-    ganttGen!==null? `El avance general del Gantt (según fases etiquetadas por área) es de ${ganttGen}%.` : `El avance del Gantt todavía no tiene fases etiquetadas por área para calcular un promedio general.`,
-    `Se recomienda priorizar el cierre de vencidos y dar seguimiento a los compromisos programados para la próxima semana.`
+    `El proyecto ${project.empresa} presenta ${total} actividades activas, con un ${aLaFechaPctGen? aLaFechaPctGen.pct : 0}% de cumplimiento acumulado a la fecha.`,
+    `Se registran ${vencidosGen} actividad(es) vencida(s) al cierre de este período, requiriendo atención prioritaria.`,
+    `Se recomienda priorizar el cierre de vencidas y dar seguimiento a las actividades programadas para la próxima semana.`
   ];
   slide.addText(generalBullets.map(b=>({text:b, options:{bullet:true, breakLine:true, paraSpaceAfter:12}})), {x:0.5,y:1.7,w:W-1,h:3.2,fontSize:13.5,color:'333333'});
 
-  // ---- 8. Cierre ----
+  // ---- 9. Cierre ----
   slide = pptx.addSlide();
   slide.background = {color:'FFFFFF'};
   slide.addText('¡Muchas gracias!', {x:0.5,y:1.6,w:W-1,h:0.7,fontSize:26,color:'333333',align:'center'});
@@ -3070,7 +3092,7 @@ function renderByPersonBody(filterName){
       if(b==='OLATI (institucional)') return 1;
       return a.localeCompare(b);
     });
-    document.getElementById('byPersonBody').innerHTML = names.map(n=>byPersonGroupBlock(n, groups[n])).join('') || '<p style="color:var(--text-soft);">Sin compromisos registrados todavía.</p>';
+    document.getElementById('byPersonBody').innerHTML = names.map(n=>byPersonGroupBlock(n, groups[n])).join('') || '<p style="color:var(--text-soft);">Sin actividades registradas todavía.</p>';
     return;
   }
   const list = groups[filterName] || [];
@@ -3207,7 +3229,9 @@ function openGanttAreaTagModal(projectId, taskKey){
   ganttTagCtx = {projectId, taskKey};
   const current = (project.ganttAreaTags && project.ganttAreaTags[taskKey]) || [];
   document.getElementById('ganttTagTaskName').textContent = taskKey;
-  document.getElementById('ganttTagAreasList').innerHTML = project.areas.map(a=>`
+  const hasOlatiArea = project.areas.some(a=>a.key==='OLATI_INTERNO');
+  const areasForList = hasOlatiArea ? project.areas : [{key:'OLATI_INTERNO', label:'OLATI Interno', color:'#132a43'}, ...project.areas];
+  document.getElementById('ganttTagAreasList').innerHTML = areasForList.map(a=>`
     <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13.5px;">
       <input type="checkbox" class="gtag-chk" value="${a.key}" ${current.includes(a.key)?'checked':''} style="width:auto;">
       <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.color};"></span>
@@ -3318,7 +3342,7 @@ function renderGanttNode(project, node, depth){
       <div class="gantt-row">
         <button class="gantt-toggle ${hasChildren?'':'leaf'}" onclick="toggleGanttNode('${node.id}')">${hasChildren? (isOpen?'▾':'▸') : '·'}</button>
         <div class="gantt-name ${lvlClass}">${node.edt? `<span class="mono" style="color:var(--text-soft);font-size:11px;">${node.edt}</span> `:''}${node.name}</div>
-        ${cross? `<span class="gantt-cross" title="${cross.cumplidos}/${cross.total} compromisos vinculados cumplidos">🔗 ${cross.pct}% (${cross.cumplidos}/${cross.total})</span>` : ''}
+        ${cross? `<span class="gantt-cross" title="${cross.cumplidos}/${cross.total} actividades vinculadas cumplidas">🔗 ${cross.pct}% (${cross.cumplidos}/${cross.total})</span>` : ''}
         ${(()=>{ const tags=(project.ganttAreaTags&&project.ganttAreaTags[key])||[]; const labels=tags.map(k=>{const a=project.areas.find(x=>x.key===k); return a?a.label:null;}).filter(Boolean); return `<button class="gantt-tag-btn" title="Etiquetar área(s)" onclick="openGanttAreaTagModal('${project.id}','${key.replace(/'/g,"\\'")}')">${labels.length? '🏷️ '+labels.join(', ') : '🏷️'}</button>`; })()}
         <div class="gantt-bar-wrap"><div class="gantt-bar" style="width:${node.pct}%;background:${node.pct>=100?'var(--ok)':(node.pct>0?'var(--proc)':'var(--border)')};"></div></div>
         <div class="gantt-pct">${node.pct}%</div>
@@ -3439,13 +3463,13 @@ function renderCalendar(){
         <td>${numDesc(a.desc, a.localIndex)}</td>
         <td>${respLabel(a, project)}</td>
         <td><span class="status-pill ${a.status.key}">${a.status.text}</span></td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin compromisos con vencimiento en ${label}.</td></tr>`}
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Sin actividades con vencimiento en ${label}.</td></tr>`}
   </tbody></table>`;
 
   document.getElementById('calModalBody').innerHTML = `
     <div class="cal-months">${tabsHtml}</div>
     ${grid}
-    <h4 style="margin:18px 0 10px;">Compromisos que vencen en ${label}</h4>
+    <h4 style="margin:18px 0 10px;">Actividades que vencen en ${label}</h4>
     ${listHtml}
   `;
   document.querySelectorAll('.cal-months button').forEach(b=>{
