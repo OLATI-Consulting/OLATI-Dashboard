@@ -2004,10 +2004,14 @@ function renderPanelGeneral(p){
 
   const statusCounts = {cumplido_tiempo:0,cumplido_retraso:0,en_proceso:0,por_vencer:0,vencido:0};
   withStatus.forEach(a=> statusCounts[a.status.key]++);
+  const nz1 = nonZeroSlices(
+    ['Cumplido a tiempo','Cumplido con retraso','En proceso','Por vencer','Vencido'],
+    [statusCounts.cumplido_tiempo,statusCounts.cumplido_retraso,statusCounts.en_proceso,statusCounts.por_vencer,statusCounts.vencido],
+    ['#178a4c','#7d8f1f','#2563eb','#c17d0e','#c22b2b']
+  );
   mkChart(`chart-${p.id}-gen-status`, 'doughnut', {
-    labels:['Cumplido a tiempo','Cumplido con retraso','En proceso','Por vencer','Vencido'],
-    datasets:[{data:[statusCounts.cumplido_tiempo,statusCounts.cumplido_retraso,statusCounts.en_proceso,statusCounts.por_vencer,statusCounts.vencido],
-      backgroundColor:['#178a4c','#7d8f1f','#2563eb','#c17d0e','#c22b2b']}]
+    labels: nz1.labels,
+    datasets:[{data: nz1.values, backgroundColor: nz1.colors}]
   });
   mkChart(`chart-${p.id}-gen-docs`, 'bar', {
     labels: docsAll.map(d=>d.label),
@@ -2120,13 +2124,14 @@ function renderAreaView(p, area){
     </div>
   `;
 
+  const nz2 = nonZeroSlices(
+    ['Cumplido a tiempo','Cumplido con retraso','En proceso','Por vencer','Vencido'],
+    [acts.filter(a=>a.status.key==='cumplido_tiempo').length, acts.filter(a=>a.status.key==='cumplido_retraso').length, enProceso, porVencer, vencidos],
+    ['#178a4c','#7d8f1f','#2563eb','#c17d0e','#c22b2b']
+  );
   mkChart(`chart-${p.id}-${area.key}-status`, 'doughnut', {
-    labels:['Cumplido a tiempo','Cumplido con retraso','En proceso','Por vencer','Vencido'],
-    datasets:[{data:[
-      acts.filter(a=>a.status.key==='cumplido_tiempo').length,
-      acts.filter(a=>a.status.key==='cumplido_retraso').length,
-      enProceso, porVencer, vencidos
-    ], backgroundColor:['#178a4c','#7d8f1f','#2563eb','#c17d0e','#c22b2b']}]
+    labels: nz2.labels,
+    datasets:[{data: nz2.values, backgroundColor: nz2.colors}]
   });
   mkChart(`chart-${p.id}-${area.key}-cump`, 'bar', {
     labels:['A tiempo','Con retraso','Vencidos'],
@@ -2137,6 +2142,13 @@ function renderAreaView(p, area){
 
 /* ================= Chart helper ================= */
 if(window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+function nonZeroSlices(labels, values, colors){
+  const fLabels=[], fValues=[], fColors=[];
+  labels.forEach((l,i)=>{
+    if(values[i] > 0){ fLabels.push(l); fValues.push(values[i]); fColors.push(colors[i]); }
+  });
+  return { labels: fLabels, values: fValues, colors: fColors };
+}
 function mkChart(canvasId, type, data, extraOptions){
   const canvas = document.getElementById(canvasId);
   if(!canvas) return;
@@ -2761,20 +2773,28 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
   const weekPctGen = cumplidoPctForActs(allActs, fi, ff);
   const aLaFechaPctGen = cumplidoPctGeneral(allActs);
   const kpis = [
-    ['Total de Actividades', String(total)],
-    ['% de Cumplimiento (semana)', weekPctGen? weekPctGen.pct+'%':'—'],
-    ['% de Cumplimiento (a la fecha)', aLaFechaPctGen? aLaFechaPctGen.pct+'%':'—'],
-    ['Vencidas', String(vencidosGen)]
+    ['Total de Actividades Programadas', String(total)],
+    ['% de la Semana', weekPctGen? weekPctGen.pct+'%':'—'],
+    ['% Cumplimiento acumulado de lo vencido', aLaFechaPctGen? aLaFechaPctGen.pct+'%':'—'],
+    ['Actividades Vencidas', String(vencidosGen)]
   ];
   kpis.forEach((k,i)=>{
     const x = 0.9 + i*(W-1.8)/kpis.length;
     slide.addShape('roundRect', {x, y:1.75, w:(W-1.8)/kpis.length-0.15, h:0.95, fill:{color:'F5F7FA'}, line:{color:'DDE2E8'}, rectRadius:0.06});
     slide.addText(k[0], {x:x+0.05,y:1.82,w:(W-1.8)/kpis.length-0.25,h:0.35,fontSize:9,color:'667085'});
-    slide.addText(k[1], {x:x+0.05,y:2.12,w:(W-1.8)/kpis.length-0.25,h:0.5,fontSize:18,color: k[0]==='Vencidas'&&vencidosGen>0?'C22B2B':'1B2A4A', bold:true});
+    slide.addText(k[1], {x:x+0.05,y:2.12,w:(W-1.8)/kpis.length-0.25,h:0.5,fontSize:18,color: k[0]==='Actividades Vencidas'&&vencidosGen>0?'C22B2B':'1B2A4A', bold:true});
   });
   const scGen = statusCountsFrom(allActs);
-  slide.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[scGen.a,scGen.r,scGen.p,scGen.x,scGen.v]}],
-    {x:2.5,y:2.95,w:5,h:2.5, chartColors:DONUT_COLORS, showLegend:true, legendPos:'b', legendFontSize:8, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:10, title:'Estatus global de actividades', titleFontSize:11});
+  const nzGen = nonZeroSlices(['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], [scGen.a,scGen.r,scGen.p,scGen.x,scGen.v], DONUT_COLORS);
+  slide.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:nzGen.labels, values:nzGen.values}],
+    {x:0.4,y:2.95,w:3.9,h:2.5, chartColors:nzGen.colors, showLegend:true, legendPos:'b', legendFontSize:7, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:9, title:'Estatus global de actividades', titleFontSize:10});
+  const barCumpGen = [{name:'Actividades', labels:['A tiempo','Con retraso','Vencidas'], values:[scGen.a, scGen.r, scGen.v]}];
+  slide.addChart(pptx.ChartType.bar, barCumpGen,
+    {x:4.5,y:2.95,w:2.4,h:2.5, chartColors:['178A4C','E67E22','C22B2B'], showLegend:false, showValue:true, dataLabelFontSize:9, catAxisLabelFontSize:8, title:'Cumplimiento', titleFontSize:10});
+  const areaLabelsGen = areas.map(a=>a.label);
+  const areaWeekPct = areas.map(a=>{ const wp=cumplidoPctForActs(a.activities, fi, ff); return wp? wp.pct : 0; });
+  slide.addChart(pptx.ChartType.bar, [{name:'% de la Semana', labels:areaLabelsGen, values:areaWeekPct}],
+    {x:7.0,y:2.95,w:2.6,h:2.5, barColor:brandHex, showValue:true, valAxisMaxVal:100, dataLabelFontSize:6, catAxisLabelFontSize:6, title:'% de la Semana, por área', titleFontSize:10});
 
   // ---- 3. Cumplidas en el período (General) ----
   const inPeriodGen = allActs.filter(a=> a.fechaLimite>=fi && a.fechaLimite<=ff);
@@ -2843,10 +2863,10 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
     s = pptx.addSlide(); bgTitle(s);
     s.addText(`Avance ${area.label}`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:22,color:'222222'});
     const kpis2 = [
-      ['Total de Actividades', String(totalArea)],
-      ['% de Cumplimiento (semana)', weekPctArea? weekPctArea.pct+'%':'—'],
-      ['% de Cumplimiento (a la fecha)', aLaFechaPctArea? aLaFechaPctArea.pct+'%':'—'],
-      ['Vencidas', String(vencidosArea)]
+      ['Total de Actividades Programadas', String(totalArea)],
+      ['% de la Semana', weekPctArea? weekPctArea.pct+'%':'—'],
+      ['% Cumplimiento acumulado de lo vencido', aLaFechaPctArea? aLaFechaPctArea.pct+'%':'—'],
+      ['Actividades Vencidas', String(vencidosArea)]
     ];
     kpis2.forEach((k,i)=>{
       const x = 0.9 + i*(W-1.8)/kpis2.length;
@@ -2855,8 +2875,9 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
       s.addText(k[1], {x:x+0.05,y:2.08,w:(W-1.8)/kpis2.length-0.2,h:0.5,fontSize:16,color:'1B2A4A',bold:true});
     });
     const scArea = statusCountsFrom(acts);
-    s.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], values:[scArea.a,scArea.r,scArea.p,scArea.x,scArea.v]}],
-      {x:2.5,y:2.75,w:5,h:2.6, chartColors:DONUT_COLORS, showLegend:true, legendPos:'b', legendFontSize:9, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:11, title:'Distribución de estatus', titleFontSize:11});
+    const nzArea = nonZeroSlices(['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], [scArea.a,scArea.r,scArea.p,scArea.x,scArea.v], DONUT_COLORS);
+    s.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:nzArea.labels, values:nzArea.values}],
+      {x:2.5,y:2.75,w:5,h:2.6, chartColors:nzArea.colors, showLegend:true, legendPos:'b', legendFontSize:9, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:11, title:'Distribución de estatus', titleFontSize:11});
 
     // Cumplidas en el período
     s = pptx.addSlide(); bgTitle(s);
