@@ -2642,7 +2642,7 @@ let customReportProjectId = null;
 function openCustomReportModal(projectId){
   customReportProjectId = projectId;
   const project = findProject(projectId);
-  document.getElementById('customReportAreas').innerHTML = project.areas.map(a=>`
+  document.getElementById('customReportAreas').innerHTML = project.areas.filter(a=>a.key!=='OLATI_INTERNO').map(a=>`
     <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13.5px;">
       <input type="checkbox" class="cr-area-chk" value="${a.key}" checked style="width:auto;">
       <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.color};"></span>
@@ -2716,7 +2716,7 @@ function computeCumplimientoPorPersona(project, areaKeys, cutoff){
 }
 async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
   const project = findProject(projectId);
-  const areas = project.areas.filter(a=>areaKeys.includes(a.key));
+  const areas = project.areas.filter(a=>areaKeys.includes(a.key) && a.key!=='OLATI_INTERNO');
   const brand = project.color || '132A43';
   const brandHex = brand.replace('#','').toUpperCase();
   const pptx = new PptxGenJS();
@@ -2795,14 +2795,16 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
       ['Total de Actividades Programadas', String(totalArea)],
       ['% cumplimiento semanal', weekPctArea? weekPctArea.pct+'%':'—'],
       ['% de cumplimiento acumulado', aLaFechaPctArea? aLaFechaPctArea.pct+'%':'—'],
-      ['Actividades Vencidas', String(vencidosArea)]
+      ['Actividades Vencidas', String(vencidasAreaPeriodo.length)]
     ];
-    kpiCardsBlack(s, kpis2, vencidosArea);
+    kpiCardsBlack(s, kpis2, vencidasAreaPeriodo.length);
     const scArea = statusCountsFrom(acts);
     const nzArea = nonZeroSlices(['A tiempo','Con retraso','En proceso','Por vencer','Vencido'], [scArea.a,scArea.r,scArea.p,scArea.x,scArea.v], DONUT_COLORS);
     s.addChart(pptx.ChartType.doughnut, [{name:'Estatus', labels:nzArea.labels, values:nzArea.values}],
       {x:0.4,y:2.9,w:4.6,h:2.5, chartColors:nzArea.colors, showLegend:true, legendPos:'b', legendFontSize:9, showPercent:true, dataLabelColor:'FFFFFF', dataLabelFontSize:11});
-    s.addChart(pptx.ChartType.bar, [{name:'Actividades', labels:['A tiempo','Con retraso','Vencidas'], values:[scArea.a, scArea.r, vencidosArea]}],
+    const cumplidasATiempoPeriodo = cumplidasArea.filter(a=>a.fechaCumplida<=a.fechaLimite).length;
+    const cumplidasConRetrasoPeriodo = cumplidasArea.length - cumplidasATiempoPeriodo;
+    s.addChart(pptx.ChartType.bar, [{name:'Actividades', labels:['A tiempo','Con retraso','Vencidas'], values:[cumplidasATiempoPeriodo, cumplidasConRetrasoPeriodo, vencidasAreaPeriodo.length]}],
       {x:5.2,y:2.9,w:4.4,h:2.5, chartColors:['178A4C','E67E22','C22B2B'], showLegend:false, showValue:true, dataLabelFontSize:10, catAxisLabelFontSize:9, title:'Cumplimiento Semanal', titleFontSize:12, showTitle:true});
 
     // Cumplidas en el período
