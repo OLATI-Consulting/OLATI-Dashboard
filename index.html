@@ -2714,6 +2714,21 @@ function computeCumplimientoPorPersona(project, areaKeys, cutoff){
     return { name, cumplidos:g.cumplidos, vencidos:g.vencidos, evaluable, avance: evaluable? Math.round(g.cumplidos/evaluable*100) : null, porVencer: g.porVencer };
   });
 }
+function computeCumplimientoPorArea(project, areaKeys, cutoff){
+  return project.areas.filter(a=>areaKeys.includes(a.key)).map(area=>{
+    let cumplidos=0, vencidos=0, porVencer=0;
+    area.activities.forEach(a=>{
+      const isDue = a.fechaLimite && a.fechaLimite <= cutoff;
+      const isDone = !!a.fechaCumplida;
+      if(!isDue) porVencer++;
+      else if(isDone) cumplidos++;
+      else vencidos++;
+    });
+    const evaluable = cumplidos + vencidos;
+    const respName = personName(project, area.responsableId) || area.responsable || '—';
+    return { areaLabel: area.label, respName, cumplidos, vencidos, evaluable, avance: evaluable? Math.round(cumplidos/evaluable*100) : null, porVencer };
+  });
+}
 async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
   const project = findProject(projectId);
   const areas = project.areas.filter(a=>areaKeys.includes(a.key) && a.key!=='OLATI_INTERNO');
@@ -2807,17 +2822,6 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
     s.addChart(pptx.ChartType.bar, [{name:'Actividades', labels:['A tiempo','Con retraso','Vencidas'], values:[cumplidasATiempoPeriodo, cumplidasConRetrasoPeriodo, vencidasAreaPeriodo.length]}],
       {x:5.2,y:2.9,w:4.4,h:2.5, chartColors:['178A4C','E67E22','C22B2B'], showLegend:false, showValue:true, dataLabelFontSize:10, catAxisLabelFontSize:9, title:'Cumplimiento Semanal', titleFontSize:12, showTitle:true});
 
-    // Cumplidas en el período
-    s = pptx.addSlide(); bgTitle(s);
-    s.addText(`${area.label} — Cumplidas en el Período`, {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:16,color:'178A4C'});
-    if(cumplidasArea.length){
-      s.addTable(tableRows(['Actividad','Responsable','Vence','Cumplida'],
-        cumplidasArea.map(a=>[numDesc(a.desc,a.localIndex), respLabel(a,project), fmtDate(a.fechaLimite), fmtDate(a.fechaCumplida)])),
-        {x:0.4,y:1.7,w:W-0.8,colW:[4.6,2.2,1.5,1.5], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}});
-    } else {
-      s.addText('Sin actividades cumplidas en este período.', {x:0.4,y:2.0,w:W-0.8,h:0.5,fontSize:11,color:'667085'});
-    }
-
     // Vencidas en el período — SOLO si esta área tiene al menos una vencida (si no, la diapositiva ni se crea)
     if(vencidasAreaPeriodo.length){
       s = pptx.addSlide(); bgTitle(s);
@@ -2857,15 +2861,39 @@ async function generateWeeklyPPTX(projectId, areaKeys, fi, ff){
     s.addText(bullets.map(b=>({text:b, options:{bullet:true, breakLine:true, paraSpaceAfter:10}})), {x:0.5,y:1.7,w:W-1,h:3.4,fontSize:13,color:'333333'});
   });
 
-  // ---- 3. Cumplimiento por Personas ----
+  // ---- 3. Cumplimiento por Responsable de Proceso (por área) ----
   slide = pptx.addSlide(); bgTitle(slide);
-  slide.addText('Cumplimiento por Personas', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:20,color:'222222'});
-  const porPersona = computeCumplimientoPorPersona(project, areaKeys, ff);
-  const totalsP = porPersona.reduce((s,p)=>({cumplidos:s.cumplidos+p.cumplidos, vencidos:s.vencidos+p.vencidos, evaluable:s.evaluable+p.evaluable, porVencer:s.porVencer+p.porVencer}), {cumplidos:0,vencidos:0,evaluable:0,porVencer:0});
-  const ppRows = tableRows(['Responsable','Cumplidas','Vencidas','Evaluables','Avance %','Por vencer/proceso'],
-    [...porPersona.map(p=>[p.name, p.cumplidos, p.vencidos, p.evaluable, p.avance!==null? p.avance+'%':'N/A', p.porVencer]),
-     ['TOTAL', totalsP.cumplidos, totalsP.vencidos, totalsP.evaluable, totalsP.evaluable? Math.round(totalsP.cumplidos/totalsP.evaluable*100)+'%':'N/A', totalsP.porVencer]]);
-  slide.addTable(ppRows, {x:0.4,y:1.6,w:W-0.8,colW:[2.6,1.2,1.2,1.3,1.2,1.7], fontSize:9, border:{type:'solid',color:'E5E8EC',pt:0.5}, autoPage:true, autoPageCharWeight:0});
+  slide.addText('Cumplimiento por Responsable de Proceso', {x:0.4,y:1.0,w:W-0.8,h:0.5,fontSize:19,color:'222222'});
+  const porArea = computeCumplimientoPorArea(project, areaKeys, ff);
+  const pctColor = (pct) => {
+    if(pct===null) return {fill:'EEEEEE', text:'888888'};
+    if(pct>=80) return {fill:'D7F2E3', text:'0F6B33'};
+    if(pct>=50) return {fill:'FCE8D2', text:'A85D00'};
+    return {fill:'FBDADA', text:'A31515'};
+  };
+  const headerRow = ['Proceso','Responsable','Cumplidas','Vencidas','Evaluables','Cumplimiento %','Por vencer/proceso'].map(h=>({text:h, options:{bold:true, fill:{color:'EEF1F5'}, color:'44506B', fontSize:9.5}}));
+  const areaRows = porArea.map(p=>{
+    const pc = pctColor(p.avance);
+    return [
+      {text:p.areaLabel, options:{fontSize:9.5, color:'2B2F3A'}},
+      {text:p.respName, options:{fontSize:9.5, color:'2B2F3A'}},
+      {text:String(p.cumplidos), options:{fontSize:9.5, color:'2B2F3A', align:'center'}},
+      {text:String(p.vencidos), options:{fontSize:9.5, color:'2B2F3A', align:'center'}},
+      {text:String(p.evaluable), options:{fontSize:9.5, color:'2B2F3A', align:'center'}},
+      {text:p.avance!==null? p.avance+'%':'N/A', options:{fontSize:9.5, bold:true, color:pc.text, fill:{color:pc.fill}, align:'center'}},
+      {text:String(p.porVencer), options:{fontSize:9.5, color:'2B2F3A', align:'center'}}
+    ];
+  });
+  const validPcts = porArea.map(p=>p.avance).filter(v=>v!==null);
+  const promedio = validPcts.length? Math.round(validPcts.reduce((a,b)=>a+b,0)/validPcts.length) : null;
+  const pcAvg = pctColor(promedio);
+  const avgRow = [
+    {text:'', options:{fontSize:9.5}}, {text:'', options:{fontSize:9.5}}, {text:'', options:{fontSize:9.5}}, {text:'', options:{fontSize:9.5}},
+    {text:'PROMEDIO', options:{fontSize:9.5, bold:true, color:'44506B', align:'right'}},
+    {text:promedio!==null? promedio+'%':'N/A', options:{fontSize:10, bold:true, color:pcAvg.text, fill:{color:pcAvg.fill}, align:'center'}},
+    {text:'', options:{fontSize:9.5}}
+  ];
+  slide.addTable([headerRow, ...areaRows, avgRow], {x:0.3,y:1.55,w:W-0.6,colW:[1.3,1.7,1.05,1.0,1.05,1.4,1.4], fontSize:9.5, border:{type:'solid',color:'E5E8EC',pt:0.5}, autoPage:true, autoPageCharWeight:0});
 
   // ---- 4. Conclusión General ----
   slide = pptx.addSlide(); bgTitle(slide);
